@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<ScrollPane fx:controller="org.example.presupuesto.RemitoController"
+            xmlns:fx="http://javafx.com/fxml"
+            fitToWidth="true"
+            fitToHeight="true">
+
+  <VBox spacing="10" style="-fx-padding: 20;" styleClass="remito-root"
+        prefWidth="800" minHeight="1000">
+
+    <!-- Encabezado completo -->
+    <HBox spacing="20" alignment="TOP_LEFT" prefWidth="800">
+
+      <!-- Datos del negocio -->
+      <VBox spacing="5" style="-fx-border-color: gray; -fx-border-width: 1; -fx-padding: 10;" prefWidth="400">
+        <ImageView fx:id="logoImage" fitHeight="60" fitWidth="130"/>
+        <Label text="DICOR CARBONES Y REPUESTOS" style="-fx-font-weight: bold;"/>
+        <Label text="de Fabrizio Dematias"/>
+        <Label text="Los Cóndores 4814 - B° Alejandro Centeno - Córdoba"/>
+        <Label text="dicorcarbones@gmail.com"/>
+      </VBox>
+
+      <!-- Datos del remito -->
+      <VBox spacing="8" style="-fx-border-color: gray; -fx-border-width: 1; -fx-padding: 10;" prefWidth="400">
+        <Label text="REMITO" style="-fx-font-size: 18px; -fx-font-weight: bold;" alignment="TOP_RIGHT"/>
+
+        <HBox spacing="5" alignment="CENTER_LEFT">
+          <Label text="Nº 0001-" style="-fx-font-weight: bold;"/>
+          <TextField fx:id="remitoNumero" prefWidth="120"/>
+        </HBox>
+
+        <HBox spacing="5" alignment="CENTER_LEFT">
+          <Label text="Fecha:" style="-fx-font-weight: bold;"/>
+          <DatePicker fx:id="fecha" prefWidth="150"/>
+        </HBox>
+
+        <Label text="C.U.I.T. Nº 20-42258265-8" style="-fx-font-size: 11px;"/>
+        <Label text="DOCUMENTO NO VÁLIDO COMO FACTURA" style="-fx-font-weight: bold; -fx-text-fill: red; -fx-font-size: 11px;"/>
+      </VBox>
+
+    </HBox>
+
+    <!-- Datos del cliente -->
+    <VBox spacing="10" style="-fx-border-color: gray; -fx-border-width: 1; -fx-padding: 10;" prefWidth="780">
+
+      <Label text="DATOS DEL CLIENTE" style="-fx-font-weight: bold; -fx-font-size: 14px;"/>
+
+      <GridPane hgap="10" vgap="8">
+        <Label text="SEÑOR:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+        <TextField fx:id="clienteNombre" GridPane.rowIndex="0" GridPane.columnIndex="1" GridPane.columnSpan="3"/>
+
+        <Label text="DOMICILIO:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+        <TextField fx:id="clienteDomicilio" GridPane.rowIndex="1" GridPane.columnIndex="1" GridPane.columnSpan="3"/>
+
+        <Label text="IVA:" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+        <HBox spacing="10" GridPane.rowIndex="2" GridPane.columnIndex="1" GridPane.columnSpan="3">
+          <RadioButton text="Consumidor Final"/>
+          <RadioButton text="Exento"/>
+          <RadioButton text="Resp. Inscripto"/>
+          <RadioButton text="Monotributo"/>
+        </HBox>
+
+        <Label text="CUIT Cliente:" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+        <TextField fx:id="clienteCUIT" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+
+        <Label text="CONDICIONES DE VENTA:" GridPane.rowIndex="3" GridPane.columnIndex="2"/>
+        <HBox spacing="10" GridPane.rowIndex="3" GridPane.columnIndex="3">
+          <CheckBox text="Contado"/>
+          <CheckBox text="Cuenta Corriente"/>
+        </HBox>
+      </GridPane>
+    </VBox>
+
+    <!-- Tabla de productos -->
+    <TableView fx:id="tablaProductos" prefHeight="300">
+      <columns>
+        <TableColumn fx:id="colCodigo" text="Código"/>
+        <TableColumn fx:id="colCantidad" text="Cantidad"/>
+        <TableColumn fx:id="colDescripcion" text="Descripción"/>
+        <TableColumn fx:id="colUnitario" text="P. Unitario"/>
+        <TableColumn fx:id="colBonificacion" text="Bonificación"/>
+        <TableColumn fx:id="colTotal" text="P. Total"/>
+      </columns>
+
+    </TableView>
+
+    <!-- Total -->
+    <HBox alignment="BOTTOM_RIGHT" spacing="10">
+      <Label text="TOTAL: $" styleClass="total-label"/>
+      <TextField fx:id="totalField" editable="false"/>
+    </HBox>
+
+    <!-- Agregar nuevo producto -->
+    <VBox spacing="10">
+
+      <HBox spacing="20" alignment="CENTER_LEFT">
+        <Label text="Código:"/>
+        <TextField fx:id="inputCodigo" prefWidth="120"/>
+        <Label text="Cantidad:"/>
+        <TextField fx:id="inputCantidad" prefWidth="120"/>
+      </HBox>
+
+      <HBox spacing="20" alignment="CENTER_LEFT">
+        <Label text="Descripción:"/>
+        <TextField fx:id="inputDescripcion" prefWidth="400"/>
+      </HBox>
+
+      <HBox spacing="20" alignment="CENTER_LEFT">
+        <Label text="P. Unitario:"/>
+        <TextField fx:id="inputPrecioUnitario" prefWidth="120"/>
+        <Label text="Bonificación (%):"/>
+        <TextField fx:id="inputBonificacion" prefWidth="120"/>
+      </HBox>
+
+      <HBox spacing="15" alignment="CENTER">
+        <Button text="Agregar producto" onAction="#agregarProducto"/>
+        <Button text="Eliminar producto seleccionado" onAction="#eliminarProducto"/>
+        <Button text="Guardar como PDF" onAction="#exportarComoPDF"/>
+      </HBox>
+    </VBox>
+  </VBox>
+</ScrollPane>
