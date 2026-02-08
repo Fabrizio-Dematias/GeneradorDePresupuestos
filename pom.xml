@@ -14,19 +14,21 @@
     <junit.version>5.10.2</junit.version>
     <maven.compiler.source>17</maven.compiler.source>
     <maven.compiler.target>17</maven.compiler.target>
+    <!-- ACTUALIZADO: JavaFX 21 es compatible con macOS ARM64 -->
+    <javafx.version>21.0.2</javafx.version>
   </properties>
 
   <dependencies>
-    <!-- JavaFX -->
+    <!-- JavaFX - VERSIÓN ACTUALIZADA -->
     <dependency>
       <groupId>org.openjfx</groupId>
       <artifactId>javafx-controls</artifactId>
-      <version>17.0.6</version>
+      <version>${javafx.version}</version>
     </dependency>
     <dependency>
       <groupId>org.openjfx</groupId>
       <artifactId>javafx-fxml</artifactId>
-      <version>17.0.6</version>
+      <version>${javafx.version}</version>
     </dependency>
 
     <!-- JUnit -->
@@ -71,7 +73,7 @@
         </configuration>
       </plugin>
 
-      <!-- Plugin JavaFX -->
+      <!-- Plugin JavaFX - VERSIÓN ACTUALIZADA -->
       <plugin>
         <groupId>org.openjfx</groupId>
         <artifactId>javafx-maven-plugin</artifactId>
@@ -87,6 +89,10 @@
               <noManPages>true</noManPages>
               <stripDebug>true</stripDebug>
               <noHeaderFiles>true</noHeaderFiles>
+              <!-- Opciones adicionales para macOS -->
+              <options>
+                <option>-Dprism.verbose=true</option>
+              </options>
             </configuration>
           </execution>
         </executions>
