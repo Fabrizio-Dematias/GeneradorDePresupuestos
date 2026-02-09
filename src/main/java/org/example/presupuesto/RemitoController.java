@@ -4,13 +4,19 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.control.TableCell;
-import javafx.scene.image.Image; // JavaFX Image
+import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.stage.FileChooser;
 
+import org.example.presupuesto.dao.DatabaseManager;
+import org.example.presupuesto.dao.RemitoDAO;
+
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.awt.Color;
 
@@ -56,7 +62,17 @@ public class RemitoController {
 
     @FXML
     public void initialize() {
-        logoImage.setImage(new Image(getClass().getResourceAsStream("/logo.png")));
+        // Cargar logo con manejo de errores
+        try {
+            Image logo = new Image(getClass().getResourceAsStream("/logo.png"));
+            if (logo != null && !logo.isError()) {
+                logoImage.setImage(logo);
+            } else {
+                System.err.println("⚠️  Advertencia: No se pudo cargar logo.png");
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️  Error al cargar logo: " + e.getMessage());
+        }
 
         colCodigo.setCellValueFactory(cell -> cell.getValue().codigoProperty());
         colCantidad.setCellValueFactory(cell -> cell.getValue().cantidadProperty().asObject());
@@ -81,6 +97,11 @@ public class RemitoController {
                 setText(empty || value == null ? "" : currencyFormatter.format(Math.round(value * 100.0) / 100.0));
             }
         });
+        
+        // Obtener el próximo número de remito automáticamente
+        String nextNumber = DatabaseManager.getNextRemitoNumber();
+        remitoNumero.setText(nextNumber);
+        System.out.println("📄 Próximo número de remito: " + nextNumber);
     }
 
     @FXML
@@ -138,6 +159,26 @@ public class RemitoController {
     @FXML
     private void exportarComoPDF() {
         try {
+            // Validar que haya productos
+            if (tablaProductos.getItems().isEmpty()) {
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.setTitle("Sin productos");
+                alert.setHeaderText(null);
+                alert.setContentText("Debés agregar al menos un producto al remito.");
+                alert.showAndWait();
+                return;
+            }
+            
+            // Validar datos del cliente
+            if (clienteNombre.getText().trim().isEmpty()) {
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.setTitle("Datos incompletos");
+                alert.setHeaderText(null);
+                alert.setContentText("Debés completar el nombre del cliente.");
+                alert.showAndWait();
+                return;
+            }
+            
             FileChooser fileChooser = new FileChooser();
             fileChooser.setTitle("Guardar remito como PDF");
             fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Archivo PDF", "*.pdf"));
@@ -165,18 +206,38 @@ public class RemitoController {
 
                 // Logo y datos del negocio
                 PdfPTable datosNegocio = new PdfPTable(1);
-                com.lowagie.text.Image logo = com.lowagie.text.Image.getInstance(
-                        new File(getClass().getResource("/logo.png").toURI()).getAbsolutePath()
-                );
-                logo.scaleToFit(80, 35); // tamaño ajustado
-                PdfPCell logoCell = new PdfPCell(logo);
-                logoCell.setBorder(Rectangle.NO_BORDER);
-                logoCell.setHorizontalAlignment(Element.ALIGN_CENTER);
-                logoCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
-                logoCell.setPaddingTop(10f);
-                logoCell.setFixedHeight(45f);
+                
+                // Cargar logo (con manejo de errores)
+                try {
+                    InputStream logoStream = getClass().getResourceAsStream("/logo.png");
+                    if (logoStream != null) {
+                        byte[] logoBytes = logoStream.readAllBytes();
+                        com.lowagie.text.Image logo = com.lowagie.text.Image.getInstance(logoBytes);
+                        logo.scaleToFit(80, 35);
+                        
+                        PdfPCell logoCell = new PdfPCell(logo);
+                        logoCell.setBorder(Rectangle.NO_BORDER);
+                        logoCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                        logoCell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+                        logoCell.setPaddingTop(10f);
+                        logoCell.setFixedHeight(45f);
+                        datosNegocio.addCell(logoCell);
+                        
+                        logoStream.close();
+                    } else {
+                        PdfPCell emptyCell = new PdfPCell(new Phrase(""));
+                        emptyCell.setBorder(Rectangle.NO_BORDER);
+                        emptyCell.setFixedHeight(45f);
+                        datosNegocio.addCell(emptyCell);
+                    }
+                } catch (Exception logoEx) {
+                    System.err.println("⚠️  No se pudo cargar el logo en el PDF: " + logoEx.getMessage());
+                    PdfPCell emptyCell = new PdfPCell(new Phrase(""));
+                    emptyCell.setBorder(Rectangle.NO_BORDER);
+                    emptyCell.setFixedHeight(45f);
+                    datosNegocio.addCell(emptyCell);
+                }
 
-                datosNegocio.addCell(logoCell);
                 datosNegocio.addCell(celdaTexto("DICOR CARBONES Y REPUESTOS", fontBold));
                 datosNegocio.addCell(celdaTexto("de Fabrizio Dematias", fontNormal));
                 datosNegocio.addCell(celdaTexto("Los Cóndores 4814 - B° Alejandro Centeno - Córdoba", fontNormal));
@@ -185,7 +246,7 @@ public class RemitoController {
                 // Datos del remito
                 PdfPTable datosRemito = new PdfPTable(1);
                 datosRemito.addCell(celdaTexto("REMITO", fontBold, Rectangle.NO_BORDER, Element.ALIGN_RIGHT));
-                datosRemito.addCell(celdaTexto("N° 0001-" + remitoNumero.getText(), fontNormal, Rectangle.NO_BORDER, Element.ALIGN_RIGHT));
+                datosRemito.addCell(celdaTexto("N° " + remitoNumero.getText(), fontNormal, Rectangle.NO_BORDER, Element.ALIGN_RIGHT));
                 datosRemito.addCell(celdaTexto("Fecha: " + (fecha.getValue() != null ? fecha.getValue().toString() : ""), fontNormal, Rectangle.NO_BORDER, Element.ALIGN_RIGHT));
                 datosRemito.addCell(celdaTexto("CUIT: 20-42258265-8", fontNormal, Rectangle.NO_BORDER, Element.ALIGN_RIGHT));
                 datosRemito.addCell(celdaTexto("DOCUMENTO NO VÁLIDO COMO FACTURA", fontRed, Rectangle.NO_BORDER, Element.ALIGN_RIGHT));
@@ -245,11 +306,14 @@ public class RemitoController {
                 document.add(totalParrafo);
 
                 document.close();
+                
+                // ⭐ NUEVO: Guardar en base de datos
+                guardarEnBaseDatos(file.getAbsolutePath());
 
                 Alert alert = new Alert(Alert.AlertType.INFORMATION);
                 alert.setTitle("PDF generado");
-                alert.setHeaderText(null);
-                alert.setContentText("El remito se guardó correctamente.");
+                alert.setHeaderText("¡Remito guardado exitosamente!");
+                alert.setContentText("El remito se guardó en:\n" + file.getAbsolutePath() + "\n\nTambién se guardó en la base de datos.");
                 alert.showAndWait();
             }
 
@@ -261,7 +325,67 @@ public class RemitoController {
             alert.setContentText(e.getMessage());
             alert.showAndWait();
         }
-
+    }
+    
+    /**
+     * ⭐ NUEVO MÉTODO: Guarda el remito en la base de datos
+     */
+    private void guardarEnBaseDatos(String rutaPDF) {
+        try {
+            // Obtener datos del remito
+            String numero = remitoNumero.getText();
+            String fechaStr = fecha.getValue() != null ? fecha.getValue().toString() : "";
+            String nombre = clienteNombre.getText();
+            String domicilio = clienteDomicilio.getText();
+            String cuit = clienteCUIT.getText();
+            
+            // Calcular total
+            double total = 0;
+            for (Remito r : tablaProductos.getItems()) {
+                total += r.precioTotalProperty().get();
+            }
+            
+            // Convertir items a lista
+            List<Remito> items = new ArrayList<>(tablaProductos.getItems());
+            
+            // Guardar en BD
+            boolean guardado = RemitoDAO.guardarRemito(
+                numero, fechaStr, nombre, domicilio, cuit, total, items, rutaPDF
+            );
+            
+            if (guardado) {
+                System.out.println("✅ Remito guardado en la base de datos");
+                
+                // Limpiar formulario y preparar para el siguiente
+                limpiarFormulario();
+                
+                // Obtener siguiente número
+                String nextNumber = DatabaseManager.getNextRemitoNumber();
+                remitoNumero.setText(nextNumber);
+            } else {
+                System.err.println("❌ Error al guardar en la base de datos");
+            }
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error al guardar en BD: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Limpia el formulario después de guardar
+     */
+    private void limpiarFormulario() {
+        clienteNombre.clear();
+        clienteDomicilio.clear();
+        clienteCUIT.clear();
+        tablaProductos.getItems().clear();
+        totalField.clear();
+        inputCodigo.clear();
+        inputCantidad.clear();
+        inputDescripcion.clear();
+        inputPrecioUnitario.clear();
+        inputBonificacion.clear();
     }
 
     private PdfPCell celdaTexto(String texto, Font fuente) {
@@ -279,6 +403,4 @@ public class RemitoController {
         celda.setPadding(5);
         return celda;
     }
-
-
 }

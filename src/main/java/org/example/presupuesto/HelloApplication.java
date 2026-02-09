@@ -1,20 +1,33 @@
 package org.example.presupuesto;
 
 import javafx.application.Application;
-import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+import org.example.presupuesto.controllers.DashboardView;
+import org.example.presupuesto.dao.DatabaseManager;
 
 public class HelloApplication extends Application {
     @Override
     public void start(Stage stage) throws Exception {
-        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("hello-view.fxml"));
-        Scene scene = new Scene(fxmlLoader.load(), 900, 700);
+        System.out.println("🚀 Iniciando aplicación DICOR...");
+        DatabaseManager.initializeDatabase();
+        
+        DashboardView dashboardView = new DashboardView();
+        Scene scene = new Scene(dashboardView, 1000, 700);
 
-        stage.setTitle("Remito - Dicor");
+        stage.setTitle("DICOR - Sistema de Gestión");
         stage.setScene(scene);
         stage.centerOnScreen();
         stage.show();
+        
+        System.out.println("✅ Aplicación iniciada correctamente");
+    }
+    
+    @Override
+    public void stop() {
+        System.out.println("🛑 Cerrando aplicación...");
+        DatabaseManager.closeConnection();
+        System.out.println("👋 Aplicación cerrada");
     }
 
     public static void main(String[] args) {
