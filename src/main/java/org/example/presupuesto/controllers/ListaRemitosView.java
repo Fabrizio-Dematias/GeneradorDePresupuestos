@@ -5,11 +5,11 @@ import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
-import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+import javafx.stage.Stage;
 import org.example.presupuesto.dao.RemitoDAO;
 
 import java.awt.Desktop;
@@ -33,18 +33,11 @@ public class ListaRemitosView extends VBox {
         setPadding(new Insets(30));
         setStyle("-fx-background-color: #f3f4f6;");
         
-        // Header
         HBox header = createHeader();
-        
-        // Barra de búsqueda y stats
         VBox toolbar = createToolbar();
-        
-        // Tabla de remitos
         VBox tableContainer = createTable();
         
         getChildren().addAll(header, toolbar, tableContainer);
-        
-        // Cargar datos
         cargarRemitos();
     }
     
@@ -53,13 +46,52 @@ public class ListaRemitosView extends VBox {
         header.setAlignment(Pos.CENTER_LEFT);
         header.setSpacing(15);
         header.setPadding(new Insets(20));
-        header.setStyle("-fx-background-color: #1e3c72; -fx-background-radius: 10;");
+        header.setStyle("-fx-background-color: #8b5cf6; -fx-background-radius: 10;");
         
-        Label title = new Label("📄 Lista de Remitos");
+        // Botón Volver
+        Button btnVolver = new Button("← Volver");
+        btnVolver.setStyle(
+            "-fx-background-color: #6d28d9; " +
+            "-fx-text-fill: white; " +
+            "-fx-font-size: 14px; " +
+            "-fx-font-weight: bold; " +
+            "-fx-padding: 10 20; " +
+            "-fx-cursor: hand; " +
+            "-fx-background-radius: 5;"
+        );
+        btnVolver.setOnAction(e -> {
+            Stage stage = (Stage) this.getScene().getWindow();
+            stage.close();
+        });
+        
+        // Hover effect
+        btnVolver.setOnMouseEntered(e -> btnVolver.setStyle(
+            "-fx-background-color: #5b21b6; " +
+            "-fx-text-fill: white; " +
+            "-fx-font-size: 14px; " +
+            "-fx-font-weight: bold; " +
+            "-fx-padding: 10 20; " +
+            "-fx-cursor: hand; " +
+            "-fx-background-radius: 5;"
+        ));
+        btnVolver.setOnMouseExited(e -> btnVolver.setStyle(
+            "-fx-background-color: #6d28d9; " +
+            "-fx-text-fill: white; " +
+            "-fx-font-size: 14px; " +
+            "-fx-font-weight: bold; " +
+            "-fx-padding: 10 20; " +
+            "-fx-cursor: hand; " +
+            "-fx-background-radius: 5;"
+        ));
+        
+        Label title = new Label("📋 Lista de Remitos");
         title.setFont(Font.font("System", FontWeight.BOLD, 24));
         title.setTextFill(Color.WHITE);
         
-        header.getChildren().add(title);
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        
+        header.getChildren().addAll(btnVolver, title, spacer);
         return header;
     }
     
@@ -71,8 +103,8 @@ public class ListaRemitosView extends VBox {
         
         // Campo de búsqueda
         searchField = new TextField();
-        searchField.setPromptText("🔍 Buscar por número, cliente...");
-        searchField.setPrefWidth(300);
+        searchField.setPromptText("🔍 Buscar por número o cliente...");
+        searchField.setPrefWidth(350);
         searchField.setStyle("-fx-font-size: 14px; -fx-padding: 8;");
         searchField.textProperty().addListener((obs, old, newValue) -> filtrarRemitos(newValue));
         
@@ -97,38 +129,31 @@ public class ListaRemitosView extends VBox {
     private VBox createTable() {
         VBox container = new VBox(10);
         
-        // Crear tabla
         tablaRemitos = new TableView<>();
         tablaRemitos.setStyle("-fx-background-color: white; -fx-background-radius: 10;");
-        tablaRemitos.setPrefHeight(400);
+        tablaRemitos.setPrefHeight(450);
         
         // Columna Número
         TableColumn<RemitoDAO.RemitoResumen, String> colNumero = new TableColumn<>("Número");
-        colNumero.setCellValueFactory(new PropertyValueFactory<>("numero"));
+        colNumero.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getNumero()));
         colNumero.setPrefWidth(120);
         colNumero.setStyle("-fx-alignment: CENTER;");
         
         // Columna Fecha
         TableColumn<RemitoDAO.RemitoResumen, String> colFecha = new TableColumn<>("Fecha");
-        colFecha.setCellValueFactory(new PropertyValueFactory<>("fecha"));
+        colFecha.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getFecha()));
         colFecha.setPrefWidth(100);
         colFecha.setStyle("-fx-alignment: CENTER;");
         
         // Columna Cliente
         TableColumn<RemitoDAO.RemitoResumen, String> colCliente = new TableColumn<>("Cliente");
-        colCliente.setCellValueFactory(new PropertyValueFactory<>("clienteNombre"));
-        colCliente.setPrefWidth(250);
-        
-        // Columna CUIT
-        TableColumn<RemitoDAO.RemitoResumen, String> colCUIT = new TableColumn<>("CUIT");
-        colCUIT.setCellValueFactory(new PropertyValueFactory<>("clienteCUIT"));
-        colCUIT.setPrefWidth(130);
-        colCUIT.setStyle("-fx-alignment: CENTER;");
+        colCliente.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getClienteNombre()));
+        colCliente.setPrefWidth(300);
         
         // Columna Total
         TableColumn<RemitoDAO.RemitoResumen, Double> colTotal = new TableColumn<>("Total");
-        colTotal.setCellValueFactory(new PropertyValueFactory<>("total"));
-        colTotal.setPrefWidth(120);
+        colTotal.setCellValueFactory(data -> new javafx.beans.property.SimpleObjectProperty<>(data.getValue().getTotal()));
+        colTotal.setPrefWidth(150);
         colTotal.setStyle("-fx-alignment: CENTER-RIGHT;");
         colTotal.setCellFactory(column -> new TableCell<>() {
             @Override
@@ -138,23 +163,29 @@ public class ListaRemitosView extends VBox {
                     setText("");
                 } else {
                     setText(currencyFormatter.format(value));
-                    setStyle("-fx-font-weight: bold;");
+                    setStyle("-fx-font-weight: bold; -fx-text-fill: #10b981;");
                 }
             }
         });
         
+        // Columna Estado
+        TableColumn<RemitoDAO.RemitoResumen, String> colEstado = new TableColumn<>("Estado");
+        colEstado.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getEstado()));
+        colEstado.setPrefWidth(120);
+        colEstado.setStyle("-fx-alignment: CENTER;");
+        
         // Columna Acciones
         TableColumn<RemitoDAO.RemitoResumen, Void> colAcciones = new TableColumn<>("Acciones");
-        colAcciones.setPrefWidth(200);
+        colAcciones.setPrefWidth(220);
         colAcciones.setCellFactory(column -> new TableCell<>() {
-            private final Button btnPDF = new Button("📄 PDF");
+            private final Button btnAbrir = new Button("📄 Ver PDF");
             private final Button btnEliminar = new Button("🗑️");
             
             {
-                btnPDF.setStyle("-fx-background-color: #10b981; -fx-text-fill: white; -fx-font-size: 11px; -fx-padding: 5 10;");
+                btnAbrir.setStyle("-fx-background-color: #3b82f6; -fx-text-fill: white; -fx-font-size: 11px; -fx-padding: 5 10;");
                 btnEliminar.setStyle("-fx-background-color: #ef4444; -fx-text-fill: white; -fx-font-size: 11px; -fx-padding: 5 10;");
                 
-                btnPDF.setOnAction(e -> {
+                btnAbrir.setOnAction(e -> {
                     RemitoDAO.RemitoResumen remito = getTableView().getItems().get(getIndex());
                     abrirPDF(remito);
                 });
@@ -173,15 +204,15 @@ public class ListaRemitosView extends VBox {
                 } else {
                     HBox buttons = new HBox(8);
                     buttons.setAlignment(Pos.CENTER);
-                    buttons.getChildren().addAll(btnPDF, btnEliminar);
+                    buttons.getChildren().addAll(btnAbrir, btnEliminar);
                     setGraphic(buttons);
                 }
             }
         });
         
-        tablaRemitos.getColumns().addAll(colNumero, colFecha, colCliente, colCUIT, colTotal, colAcciones);
-        
+        tablaRemitos.getColumns().addAll(colNumero, colFecha, colCliente, colTotal, colEstado, colAcciones);
         container.getChildren().add(tablaRemitos);
+        
         return container;
     }
     
@@ -192,8 +223,8 @@ public class ListaRemitosView extends VBox {
             tablaRemitos.setItems(todosLosRemitos);
             
             totalRemitosLabel.setText("Total: " + remitos.size() + " remitos");
-            
             System.out.println("✅ Remitos cargados: " + remitos.size());
+            
         } catch (Exception e) {
             System.err.println("❌ Error al cargar remitos: " + e.getMessage());
             e.printStackTrace();
@@ -208,6 +239,7 @@ public class ListaRemitosView extends VBox {
     private void filtrarRemitos(String filtro) {
         if (filtro == null || filtro.trim().isEmpty()) {
             tablaRemitos.setItems(todosLosRemitos);
+            totalRemitosLabel.setText("Total: " + todosLosRemitos.size() + " remitos");
             return;
         }
         
@@ -228,7 +260,7 @@ public class ListaRemitosView extends VBox {
             
             if (rutaPDF == null || rutaPDF.isEmpty()) {
                 Alert alert = new Alert(Alert.AlertType.WARNING);
-                alert.setTitle("PDF no disponible");
+                alert.setTitle("PDF no encontrado");
                 alert.setContentText("Este remito no tiene un PDF asociado.");
                 alert.showAndWait();
                 return;
@@ -238,23 +270,30 @@ public class ListaRemitosView extends VBox {
             
             if (!pdfFile.exists()) {
                 Alert alert = new Alert(Alert.AlertType.WARNING);
-                alert.setTitle("PDF no encontrado");
+                alert.setTitle("Archivo no encontrado");
                 alert.setContentText("El archivo PDF no existe en:\n" + rutaPDF);
                 alert.showAndWait();
                 return;
             }
             
             // Abrir el PDF con la aplicación predeterminada
-            Desktop.getDesktop().open(pdfFile);
-            System.out.println("📄 Abriendo PDF: " + rutaPDF);
+            if (Desktop.isDesktopSupported()) {
+                Desktop.getDesktop().open(pdfFile);
+                System.out.println("✅ PDF abierto: " + rutaPDF);
+            } else {
+                Alert alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Error");
+                alert.setContentText("No se puede abrir el PDF automáticamente en este sistema.");
+                alert.showAndWait();
+            }
             
         } catch (Exception e) {
             System.err.println("❌ Error al abrir PDF: " + e.getMessage());
             e.printStackTrace();
             
             Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Error");
-            alert.setContentText("No se pudo abrir el PDF: " + e.getMessage());
+            alert.setTitle("Error al abrir PDF");
+            alert.setContentText("No se pudo abrir el archivo PDF:\n" + e.getMessage());
             alert.showAndWait();
         }
     }
@@ -263,7 +302,11 @@ public class ListaRemitosView extends VBox {
         Alert confirmacion = new Alert(Alert.AlertType.CONFIRMATION);
         confirmacion.setTitle("Confirmar eliminación");
         confirmacion.setHeaderText("¿Eliminar remito " + remito.getNumero() + "?");
-        confirmacion.setContentText("Cliente: " + remito.getClienteNombre() + "\nTotal: " + currencyFormatter.format(remito.getTotal()) + "\n\nEsta acción no se puede deshacer.");
+        confirmacion.setContentText(
+            "Cliente: " + remito.getClienteNombre() + "\n" +
+            "Total: " + currencyFormatter.format(remito.getTotal()) + "\n\n" +
+            "Esta acción no se puede deshacer."
+        );
         
         confirmacion.showAndWait().ifPresent(response -> {
             if (response == ButtonType.OK) {
@@ -274,8 +317,6 @@ public class ListaRemitosView extends VBox {
                     success.setTitle("Remito eliminado");
                     success.setContentText("El remito se eliminó correctamente.");
                     success.showAndWait();
-                    
-                    // Recargar lista
                     cargarRemitos();
                 } else {
                     Alert error = new Alert(Alert.AlertType.ERROR);

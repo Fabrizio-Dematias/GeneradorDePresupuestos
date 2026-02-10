@@ -3,15 +3,13 @@ package org.example.presupuesto.controllers;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
-import javafx.fxml.FXMLLoader;
-import org.example.presupuesto.dao.DatabaseManager;
 import org.example.presupuesto.dao.RemitoDAO;
 import org.example.presupuesto.dao.ProductoDAO;
 
@@ -19,236 +17,317 @@ import java.text.NumberFormat;
 import java.util.Locale;
 
 public class DashboardView extends VBox {
-    
-    private Label totalRemitosLabel;
-    private Label totalFacturadoLabel;
-    private Label ultimoRemitoLabel;
+
     private Label badgeRemitos;
+    private Label badgeClientes;
     private Label badgeProductos;
+    private Label badgeHistorial;
+    private Label valueRemitos;
+    private Label valueFacturacion;
+    private Label valueProductos;
     
     private final Locale localeAR = new Locale("es", "AR");
     private final NumberFormat currencyFormatter = NumberFormat.getCurrencyInstance(localeAR);
-    
+
     public DashboardView() {
-        setSpacing(20);
-        setPadding(new Insets(30));
+        setSpacing(30);
+        setPadding(new Insets(40));
         setStyle("-fx-background-color: #f3f4f6;");
-        
+
         HBox header = createHeader();
-        VBox stats = createStats();
-        VBox modules = createModules();
+        HBox stats = createStats();
+        GridPane modules = createModules();
         
-        getChildren().addAll(header, stats, modules);
+        // Agregar ScrollPane para que se vean todos los módulos
+        ScrollPane scrollPane = new ScrollPane();
+        scrollPane.setContent(modules);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
+        scrollPane.setPadding(new Insets(10, 0, 0, 0));
+        VBox.setVgrow(scrollPane, Priority.ALWAYS);
+
+        getChildren().addAll(header, stats, scrollPane);
         cargarEstadisticas();
     }
-    
+
     private HBox createHeader() {
         HBox header = new HBox();
         header.setAlignment(Pos.CENTER_LEFT);
         header.setSpacing(15);
         header.setPadding(new Insets(20));
-        header.setStyle("-fx-background-color: #1e3c72; -fx-background-radius: 10;");
-        
-        Label title = new Label("🏢 DICOR - Sistema de Gestión");
-        title.setFont(Font.font("System", FontWeight.BOLD, 24));
+        header.setStyle("-fx-background-color: linear-gradient(to right, #1e3c72, #2a5298); -fx-background-radius: 10;");
+
+        Label title = new Label("📊 Panel de Control - DICOR");
+        title.setFont(Font.font("System", FontWeight.BOLD, 28));
         title.setTextFill(Color.WHITE);
-        
-        header.getChildren().add(title);
+
+        Label subtitle = new Label("Gestión de Remitos y Productos");
+        subtitle.setFont(Font.font("System", 14));
+        subtitle.setTextFill(Color.web("#e0e7ff"));
+
+        VBox titleBox = new VBox(5);
+        titleBox.getChildren().addAll(title, subtitle);
+
+        header.getChildren().add(titleBox);
         return header;
     }
-    
-    private VBox createStats() {
-        VBox container = new VBox(10);
-        Label title = new Label("📊 Estadísticas");
-        title.setFont(Font.font("System", FontWeight.BOLD, 18));
+
+    private HBox createStats() {
+        HBox stats = new HBox(20);
+        stats.setAlignment(Pos.CENTER);
+
+        VBox stat1 = createStatBox("📄", "Total Remitos", "0", "#3b82f6");
+        valueRemitos = (Label) ((VBox) stat1.getChildren().get(0)).getChildren().get(2);
         
-        HBox statsBox = new HBox(20);
+        VBox stat2 = createStatBox("💰", "Facturación Total", "$0", "#10b981");
+        valueFacturacion = (Label) ((VBox) stat2.getChildren().get(0)).getChildren().get(2);
         
-        VBox stat1 = createStatCard("📄 Remitos creados", "0");
-        totalRemitosLabel = (Label) ((VBox) stat1.getChildren().get(0)).getChildren().get(1);
-        
-        VBox stat2 = createStatCard("💰 Total facturado", "$0.00");
-        totalFacturadoLabel = (Label) ((VBox) stat2.getChildren().get(0)).getChildren().get(1);
-        totalFacturadoLabel.setTextFill(Color.GREEN);
-        
-        VBox stat3 = createStatCard("📋 Último remito", "0001-001");
-        ultimoRemitoLabel = (Label) ((VBox) stat3.getChildren().get(0)).getChildren().get(1);
-        ultimoRemitoLabel.setTextFill(Color.BLUE);
-        
-        statsBox.getChildren().addAll(stat1, stat2, stat3);
-        container.getChildren().addAll(title, statsBox);
-        return container;
+        VBox stat3 = createStatBox("📦", "Productos", "0", "#f59e0b");
+        valueProductos = (Label) ((VBox) stat3.getChildren().get(0)).getChildren().get(2);
+
+        stats.getChildren().addAll(stat1, stat2, stat3);
+        return stats;
     }
-    
-    private VBox createStatCard(String label, String value) {
-        VBox card = new VBox(5);
-        card.setPadding(new Insets(20));
-        card.setPrefWidth(200);
-        card.setStyle("-fx-background-color: white; -fx-background-radius: 10;");
-        
-        VBox content = new VBox(5);
-        Label labelText = new Label(label);
-        labelText.setStyle("-fx-font-size: 12px; -fx-text-fill: gray;");
-        Label valueText = new Label(value);
-        valueText.setFont(Font.font("System", FontWeight.BOLD, 32));
-        
-        content.getChildren().addAll(labelText, valueText);
-        card.getChildren().add(content);
-        return card;
-    }
-    
-    private VBox createModules() {
-        VBox container = new VBox(15);
-        Label title = new Label("🚀 Módulos Principales");
-        title.setFont(Font.font("System", FontWeight.BOLD, 18));
-        
-        HBox modulesBox = new HBox(20);
-        
-        VBox module1 = createModuleCard("📝", "Nuevo Remito", "Crear nuevo remito", true);
-        module1.setOnMouseClicked(e -> abrirNuevoRemito());
-        module1.setStyle(module1.getStyle() + "; -fx-cursor: hand;");
-        
-        VBox module2 = createModuleCard("📄", "Ver Remitos", "Lista de remitos", true);
-        badgeRemitos = new Label("0 remitos");
-        badgeRemitos.setStyle("-fx-background-color: #667eea; -fx-text-fill: white; -fx-padding: 5 10; -fx-background-radius: 15; -fx-font-size: 11px;");
-        module2.getChildren().add(badgeRemitos);
-        module2.setOnMouseClicked(e -> verListaRemitos());
-        module2.setStyle(module2.getStyle() + "; -fx-cursor: hand;");
-        
-        VBox module3 = createModuleCard("📦", "Productos", "Catálogo de productos", true);
-        badgeProductos = new Label("0 productos");
-        badgeProductos.setStyle("-fx-background-color: #f59e0b; -fx-text-fill: white; -fx-padding: 5 10; -fx-background-radius: 15; -fx-font-size: 11px;");
-        module3.getChildren().add(badgeProductos);
-        module3.setOnMouseClicked(e -> verProductos());
-        module3.setStyle(module3.getStyle() + "; -fx-cursor: hand;");
-        
-        modulesBox.getChildren().addAll(module1, module2, module3);
-        container.getChildren().addAll(title, modulesBox);
-        return container;
-    }
-    
-    private VBox createModuleCard(String icon, String title, String subtitle, boolean enabled) {
-        VBox card = new VBox(10);
-        card.setAlignment(Pos.CENTER);
-        card.setPadding(new Insets(30));
-        card.setPrefWidth(250);
-        card.setPrefHeight(200);
-        
-        if (enabled) {
-            card.setStyle("-fx-background-color: white; -fx-background-radius: 10;");
-        } else {
-            card.setStyle("-fx-background-color: lightgray; -fx-background-radius: 10;");
-        }
-        
+
+    private VBox createStatBox(String icon, String label, String value, String color) {
+        VBox box = new VBox(10);
+        box.setAlignment(Pos.CENTER);
+        box.setPadding(new Insets(20));
+        box.setStyle("-fx-background-color: white; -fx-background-radius: 10; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 2);");
+        box.setPrefWidth(250);
+
+        VBox content = new VBox(10);
+        content.setAlignment(Pos.CENTER);
+
         Label iconLabel = new Label(icon);
-        iconLabel.setFont(Font.font(48));
-        if (!enabled) iconLabel.setOpacity(0.5);
+        iconLabel.setFont(Font.font(40));
+
+        Label titleLabel = new Label(label);
+        titleLabel.setFont(Font.font("System", FontWeight.NORMAL, 12));
+        titleLabel.setTextFill(Color.web("#6b7280"));
+
+        Label valueLabel = new Label(value);
+        valueLabel.setFont(Font.font("System", FontWeight.BOLD, 24));
+        valueLabel.setTextFill(Color.web(color));
+
+        content.getChildren().addAll(iconLabel, titleLabel, valueLabel);
+        box.getChildren().add(content);
+        return box;
+    }
+
+    private GridPane createModules() {
+        GridPane modules = new GridPane();
+        modules.setHgap(20);
+        modules.setVgap(20);
+        modules.setAlignment(Pos.CENTER);
+        modules.setPadding(new Insets(20, 0, 20, 0));
+
+        // Módulo 1: Nuevo Remito
+        VBox module1 = createModuleBox(
+            "📝",
+            "Nuevo Remito",
+            "Crear remito",
+            "#3b82f6"
+        );
+        module1.setOnMouseClicked(e -> abrirNuevoRemito());
+        module1.setCursor(javafx.scene.Cursor.HAND);
+
+        // Módulo 2: Lista de Remitos
+        VBox module2 = createModuleBox(
+            "📋",
+            "Lista de Remitos",
+            "Ver todos los remitos",
+            "#8b5cf6"
+        );
+
+        badgeRemitos = new Label("0 remitos");
+        badgeRemitos.setStyle("-fx-background-color: #a78bfa; -fx-text-fill: white; -fx-padding: 5 10; -fx-background-radius: 15; -fx-font-size: 11px;");
+        ((VBox) module2.getChildren().get(0)).getChildren().add(badgeRemitos);
+
+        module2.setOnMouseClicked(e -> verListaRemitos());
+        module2.setCursor(javafx.scene.Cursor.HAND);
+
+        // Módulo 3: Productos
+        VBox module3 = createModuleBox(
+            "📦",
+            "Productos",
+            "Gestión de productos",
+            "#10b981"
+        );
+
+        badgeProductos = new Label("0 productos");
+        badgeProductos.setStyle("-fx-background-color: #34d399; -fx-text-fill: white; -fx-padding: 5 10; -fx-background-radius: 15; -fx-font-size: 11px;");
+        ((VBox) module3.getChildren().get(0)).getChildren().add(badgeProductos);
+
+        module3.setOnMouseClicked(e -> verProductos());
+        module3.setCursor(javafx.scene.Cursor.HAND);
+
+        // Módulo 4: Historial de Precios
+        VBox module4 = createModuleBox(
+            "📜",
+            "Historial de Precios",
+            "Auditoría de cambios",
+            "#7c3aed"
+        );
+
+        badgeHistorial = new Label("0 cambios");
+        badgeHistorial.setStyle("-fx-background-color: #a78bfa; -fx-text-fill: white; -fx-padding: 5 10; -fx-background-radius: 15; -fx-font-size: 11px;");
+        ((VBox) module4.getChildren().get(0)).getChildren().add(badgeHistorial);
+
+        module4.setOnMouseClicked(e -> verHistorialPrecios());
+        module4.setCursor(javafx.scene.Cursor.HAND);
+
+        modules.add(module1, 0, 0);
+        modules.add(module2, 1, 0);
+        modules.add(module3, 0, 1);
+        modules.add(module4, 1, 1);
+
+        return modules;
+    }
+
+    private VBox createModuleBox(String icon, String title, String description, String color) {
+        VBox box = new VBox(15);
+        box.setAlignment(Pos.CENTER);
+        box.setPadding(new Insets(30));
+        box.setPrefSize(300, 200);
         
+        final String baseStyle = 
+            "-fx-background-color: white; " +
+            "-fx-background-radius: 15; " +
+            "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 15, 0, 0, 5); " +
+            "-fx-border-color: " + color + "; " +
+            "-fx-border-width: 0 0 4 0; " +
+            "-fx-border-radius: 15;";
+
+        final String hoverStyle = 
+            "-fx-background-color: " + color + "15; " +
+            "-fx-background-radius: 15; " +
+            "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.25), 20, 0, 0, 8); " +
+            "-fx-border-color: " + color + "; " +
+            "-fx-border-width: 0 0 4 0; " +
+            "-fx-border-radius: 15; " +
+            "-fx-scale-x: 1.02; " +
+            "-fx-scale-y: 1.02;";
+        
+        box.setStyle(baseStyle);
+
+        // Crear labels ANTES de agregar eventos
+        Label iconLabel = new Label(icon);
+        iconLabel.setFont(Font.font(50));
+        iconLabel.setVisible(true);
+        iconLabel.setManaged(true);
+
         Label titleLabel = new Label(title);
         titleLabel.setFont(Font.font("System", FontWeight.BOLD, 18));
-        if (!enabled) titleLabel.setTextFill(Color.GRAY);
-        
-        Label subtitleLabel = new Label(subtitle);
-        subtitleLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: gray;");
-        
-        card.getChildren().addAll(iconLabel, titleLabel, subtitleLabel);
-        return card;
+        titleLabel.setTextFill(Color.BLACK);
+        titleLabel.setVisible(true);
+        titleLabel.setManaged(true);
+        titleLabel.setStyle("-fx-text-fill: black;"); // Forzar color en CSS también
+
+        Label descLabel = new Label(description);
+        descLabel.setFont(Font.font("System", 12));
+        descLabel.setTextFill(Color.web("#374151"));
+        descLabel.setVisible(true);
+        descLabel.setManaged(true);
+        descLabel.setStyle("-fx-text-fill: #374151;"); // Forzar color en CSS también
+
+        VBox content = new VBox(10);
+        content.setAlignment(Pos.CENTER);
+        content.setVisible(true);
+        content.setManaged(true);
+        content.getChildren().addAll(iconLabel, titleLabel, descLabel);
+
+        box.getChildren().add(content);
+
+        // Eventos de hover DESPUÉS de crear todo
+        box.setOnMouseEntered(e -> {
+            box.setStyle(hoverStyle);
+        });
+
+        box.setOnMouseExited(e -> {
+            box.setStyle(baseStyle);
+        });
+
+        return box;
     }
-    
+
     private void cargarEstadisticas() {
         try {
+            // Cargar estadísticas de remitos
             int totalRemitos = RemitoDAO.contarRemitos();
-            totalRemitosLabel.setText(String.valueOf(totalRemitos));
             badgeRemitos.setText(totalRemitos + " remitos");
-            
-            double totalFacturado = RemitoDAO.obtenerTotalFacturado();
-            totalFacturadoLabel.setText(currencyFormatter.format(totalFacturado));
-            
-            String siguienteNumero = DatabaseManager.getNextRemitoNumber();
-            String[] parts = siguienteNumero.split("-");
-            int ultimoNum = Integer.parseInt(parts[1]) - 1;
-            if (ultimoNum > 0) {
-                ultimoRemitoLabel.setText(String.format("0001-%03d", ultimoNum));
-            } else {
-                ultimoRemitoLabel.setText("Sin remitos");
-            }
-            
-            // Actualizar badge de productos
+            valueRemitos.setText(String.valueOf(totalRemitos));
+
+            // Cargar facturación total
+            double facturacionTotal = RemitoDAO.obtenerFacturacionTotal();
+            valueFacturacion.setText(currencyFormatter.format(facturacionTotal));
+
+            // Cargar total de productos
             int totalProductos = ProductoDAO.contarProductos();
             badgeProductos.setText(totalProductos + " productos");
-            
-            System.out.println("📊 Estadísticas cargadas");
+            valueProductos.setText(String.valueOf(totalProductos));
+
+            // Cargar total de cambios de precios
+            int totalCambios = org.example.presupuesto.dao.HistorialPreciosDAO.contarRegistros();
+            badgeHistorial.setText(totalCambios + " cambios");
+
+            System.out.println("✅ Estadísticas cargadas: " + totalRemitos + " remitos, " + 
+                             currencyFormatter.format(facturacionTotal) + " facturado, " + 
+                             totalProductos + " productos, " + totalCambios + " cambios");
+
         } catch (Exception e) {
-            System.err.println("❌ Error: " + e.getMessage());
+            System.err.println("❌ Error al cargar estadísticas: " + e.getMessage());
+            e.printStackTrace();
         }
     }
-    
+
     private void abrirNuevoRemito() {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/org/example/presupuesto/views/remito-form.fxml"));
-            Scene scene = new Scene(loader.load(), 900, 700);
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
+                getClass().getResource("/org/example/presupuesto/views/remito-form.fxml")
+            );
+            javafx.scene.Parent root = loader.load();
+
+            Scene scene = new Scene(root, 1000, 700);
             Stage stage = new Stage();
             stage.setTitle("Nuevo Remito - DICOR");
             stage.setScene(scene);
-            stage.centerOnScreen();
             stage.setOnHidden(event -> cargarEstadisticas());
             stage.show();
+
         } catch (Exception e) {
+            System.err.println("❌ Error al abrir formulario de remito: " + e.getMessage());
             e.printStackTrace();
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setContentText("Error: " + e.getMessage());
-            alert.showAndWait();
         }
     }
-    
+
     private void verListaRemitos() {
-        try {
-            System.out.println("📋 Abriendo lista de remitos...");
-            
-            ListaRemitosView listaView = new ListaRemitosView();
-            Scene scene = new Scene(listaView, 1200, 700);
-            
-            Stage stage = new Stage();
-            stage.setTitle("Lista de Remitos - DICOR");
-            stage.setScene(scene);
-            stage.centerOnScreen();
-            
-            stage.setOnHidden(event -> cargarEstadisticas());
-            
-            stage.show();
-            
-        } catch (Exception e) {
-            e.printStackTrace();
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Error");
-            alert.setContentText("No se pudo abrir la lista: " + e.getMessage());
-            alert.showAndWait();
-        }
+        ListaRemitosView listaView = new ListaRemitosView();
+        Scene scene = new Scene(listaView, 1200, 700);
+        Stage stage = new Stage();
+        stage.setTitle("Lista de Remitos - DICOR");
+        stage.setScene(scene);
+        stage.setOnHidden(event -> cargarEstadisticas());
+        stage.show();
     }
-    
+
     private void verProductos() {
-        try {
-            System.out.println("📦 Abriendo catálogo de productos...");
-            
-            ProductosView productosView = new ProductosView();
-            Scene scene = new Scene(productosView, 1200, 700);
-            
-            Stage stage = new Stage();
-            stage.setTitle("Catálogo de Productos - DICOR");
-            stage.setScene(scene);
-            stage.centerOnScreen();
-            
-            // Cuando se cierre, actualizar estadísticas del dashboard
-            stage.setOnHidden(event -> cargarEstadisticas());
-            
-            stage.show();
-            
-        } catch (Exception e) {
-            e.printStackTrace();
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Error");
-            alert.setContentText("No se pudo abrir el catálogo: " + e.getMessage());
-            alert.showAndWait();
-        }
+        ProductosView productosView = new ProductosView();
+        Scene scene = new Scene(productosView, 1200, 700);
+        Stage stage = new Stage();
+        stage.setTitle("Catálogo de Productos - DICOR");
+        stage.setScene(scene);
+        stage.setOnHidden(event -> cargarEstadisticas());
+        stage.show();
+    }
+
+    private void verHistorialPrecios() {
+        HistorialPreciosView historialView = new HistorialPreciosView();
+        Scene scene = new Scene(historialView, 1200, 700);
+        Stage stage = new Stage();
+        stage.setTitle("Historial de Cambios de Precios - DICOR");
+        stage.setScene(scene);
+        stage.setOnHidden(event -> cargarEstadisticas());
+        stage.show();
     }
 }

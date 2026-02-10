@@ -10,6 +10,7 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+import javafx.stage.Stage;
 import org.example.presupuesto.dao.ProductoDAO;
 import org.example.presupuesto.models.Producto;
 
@@ -47,11 +48,50 @@ public class ProductosView extends VBox {
         header.setPadding(new Insets(20));
         header.setStyle("-fx-background-color: #1e3c72; -fx-background-radius: 10;");
         
+        // Botón Volver
+        Button btnVolver = new Button("← Volver");
+        btnVolver.setStyle(
+            "-fx-background-color: #3b82f6; " +
+            "-fx-text-fill: white; " +
+            "-fx-font-size: 14px; " +
+            "-fx-font-weight: bold; " +
+            "-fx-padding: 10 20; " +
+            "-fx-cursor: hand; " +
+            "-fx-background-radius: 5;"
+        );
+        btnVolver.setOnAction(e -> {
+            Stage stage = (Stage) this.getScene().getWindow();
+            stage.close();
+        });
+        
+        // Hover effect
+        btnVolver.setOnMouseEntered(e -> btnVolver.setStyle(
+            "-fx-background-color: #2563eb; " +
+            "-fx-text-fill: white; " +
+            "-fx-font-size: 14px; " +
+            "-fx-font-weight: bold; " +
+            "-fx-padding: 10 20; " +
+            "-fx-cursor: hand; " +
+            "-fx-background-radius: 5;"
+        ));
+        btnVolver.setOnMouseExited(e -> btnVolver.setStyle(
+            "-fx-background-color: #3b82f6; " +
+            "-fx-text-fill: white; " +
+            "-fx-font-size: 14px; " +
+            "-fx-font-weight: bold; " +
+            "-fx-padding: 10 20; " +
+            "-fx-cursor: hand; " +
+            "-fx-background-radius: 5;"
+        ));
+        
         Label title = new Label("📦 Catálogo de Productos");
         title.setFont(Font.font("System", FontWeight.BOLD, 24));
         title.setTextFill(Color.WHITE);
         
-        header.getChildren().add(title);
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        
+        header.getChildren().addAll(btnVolver, title, spacer);
         return header;
     }
     

@@ -208,32 +208,81 @@ public class ProductoDAO {
     
     /**
      * Actualiza los precios de productos por categoría aplicando un porcentaje
+     * y registra los cambios en el historial
      */
     public static int actualizarPreciosPorCategoria(String categoria, double porcentajeAumento) {
-        String query;
+        String querySelect;
+        String queryUpdate;
         
         if (categoria == null || categoria.equals("TODOS")) {
-            query = "UPDATE productos SET precio_unitario = precio_unitario * (1 + ? / 100.0), fecha_actualizacion = CURRENT_TIMESTAMP";
+            querySelect = "SELECT codigo, descripcion, precio_unitario, categoria FROM productos";
+            queryUpdate = "UPDATE productos SET precio_unitario = precio_unitario * (1 + ? / 100.0), fecha_actualizacion = CURRENT_TIMESTAMP";
         } else {
-            query = "UPDATE productos SET precio_unitario = precio_unitario * (1 + ? / 100.0), fecha_actualizacion = CURRENT_TIMESTAMP WHERE categoria = ?";
+            querySelect = "SELECT codigo, descripcion, precio_unitario, categoria FROM productos WHERE categoria = ?";
+            queryUpdate = "UPDATE productos SET precio_unitario = precio_unitario * (1 + ? / 100.0), fecha_actualizacion = CURRENT_TIMESTAMP WHERE categoria = ?";
         }
         
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(query)) {
+        try (Connection conn = DatabaseManager.getConnection()) {
             
-            pstmt.setDouble(1, porcentajeAumento);
+            // Primero, obtener los productos antes de actualizar
+            List<ProductoConPrecio> productosAntes = new ArrayList<>();
             
-            if (categoria != null && !categoria.equals("TODOS")) {
-                pstmt.setString(2, categoria);
+            try (PreparedStatement pstmtSelect = conn.prepareStatement(querySelect)) {
+                if (categoria != null && !categoria.equals("TODOS")) {
+                    pstmtSelect.setString(1, categoria);
+                }
+                
+                ResultSet rs = pstmtSelect.executeQuery();
+                while (rs.next()) {
+                    productosAntes.add(new ProductoConPrecio(
+                        rs.getString("codigo"),
+                        rs.getString("descripcion"),
+                        rs.getDouble("precio_unitario"),
+                        rs.getString("categoria")
+                    ));
+                }
             }
             
-            int affectedRows = pstmt.executeUpdate();
+            // Actualizar precios
+            int affectedRows;
+            try (PreparedStatement pstmtUpdate = conn.prepareStatement(queryUpdate)) {
+                pstmtUpdate.setDouble(1, porcentajeAumento);
+                
+                if (categoria != null && !categoria.equals("TODOS")) {
+                    pstmtUpdate.setString(2, categoria);
+                }
+                
+                affectedRows = pstmtUpdate.executeUpdate();
+            }
+            
+            // Registrar en historial
+            String queryHistorial = "INSERT INTO historial_precios (producto_codigo, producto_descripcion, precio_anterior, precio_nuevo, porcentaje_cambio, categoria) VALUES (?, ?, ?, ?, ?, ?)";
+            
+            try (PreparedStatement pstmtHistorial = conn.prepareStatement(queryHistorial)) {
+                for (ProductoConPrecio producto : productosAntes) {
+                    double precioAnterior = producto.precio;
+                    double precioNuevo = precioAnterior * (1 + porcentajeAumento / 100.0);
+                    
+                    pstmtHistorial.setString(1, producto.codigo);
+                    pstmtHistorial.setString(2, producto.descripcion);
+                    pstmtHistorial.setDouble(3, precioAnterior);
+                    pstmtHistorial.setDouble(4, precioNuevo);
+                    pstmtHistorial.setDouble(5, porcentajeAumento);
+                    pstmtHistorial.setString(6, producto.categoria);
+                    pstmtHistorial.addBatch();
+                }
+                
+                pstmtHistorial.executeBatch();
+            }
             
             System.out.println("✅ Precios actualizados: " + affectedRows + " productos con " + porcentajeAumento + "% de aumento");
+            System.out.println("✅ Cambios registrados en historial");
+            
             return affectedRows;
             
         } catch (SQLException e) {
             System.err.println("❌ Error al actualizar precios: " + e.getMessage());
+            e.printStackTrace();
         }
         
         return 0;
@@ -314,5 +363,22 @@ public class ProductoDAO {
         }
         
         return previews;
+    }
+    
+    /**
+     * Clase auxiliar para almacenar producto con precio
+     */
+    private static class ProductoConPrecio {
+        String codigo;
+        String descripcion;
+        double precio;
+        String categoria;
+        
+        ProductoConPrecio(String codigo, String descripcion, double precio, String categoria) {
+            this.codigo = codigo;
+            this.descripcion = descripcion;
+            this.precio = precio;
+            this.categoria = categoria;
+        }
     }
 }
