@@ -194,10 +194,28 @@ public class DashboardView extends VBox {
     }
     
     private void verListaRemitos() {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Próximamente");
-        alert.setHeaderText("Lista de Remitos");
-        alert.setContentText("Esta funcionalidad estará disponible pronto.");
-        alert.showAndWait();
+        try {
+            System.out.println("📋 Abriendo lista de remitos...");
+            
+            ListaRemitosView listaView = new ListaRemitosView();
+            Scene scene = new Scene(listaView, 1200, 700);
+            
+            Stage stage = new Stage();
+            stage.setTitle("Lista de Remitos - DICOR");
+            stage.setScene(scene);
+            stage.centerOnScreen();
+            
+            // Cuando se cierre, actualizar estadísticas del dashboard
+            stage.setOnHidden(event -> cargarEstadisticas());
+            
+            stage.show();
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Error");
+            alert.setContentText("No se pudo abrir la lista: " + e.getMessage());
+            alert.showAndWait();
+        }
     }
 }
