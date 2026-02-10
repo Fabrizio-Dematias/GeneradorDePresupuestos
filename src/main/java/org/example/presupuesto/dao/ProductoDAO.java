@@ -4,6 +4,8 @@ import org.example.presupuesto.models.Producto;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.text.NumberFormat;
+import java.util.Locale;
 
 /**
  * Data Access Object para Productos
@@ -202,5 +204,115 @@ public class ProductoDAO {
         }
         
         return 0;
+    }
+    
+    /**
+     * Actualiza los precios de productos por categoría aplicando un porcentaje
+     */
+    public static int actualizarPreciosPorCategoria(String categoria, double porcentajeAumento) {
+        String query;
+        
+        if (categoria == null || categoria.equals("TODOS")) {
+            query = "UPDATE productos SET precio_unitario = precio_unitario * (1 + ? / 100.0), fecha_actualizacion = CURRENT_TIMESTAMP";
+        } else {
+            query = "UPDATE productos SET precio_unitario = precio_unitario * (1 + ? / 100.0), fecha_actualizacion = CURRENT_TIMESTAMP WHERE categoria = ?";
+        }
+        
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(query)) {
+            
+            pstmt.setDouble(1, porcentajeAumento);
+            
+            if (categoria != null && !categoria.equals("TODOS")) {
+                pstmt.setString(2, categoria);
+            }
+            
+            int affectedRows = pstmt.executeUpdate();
+            
+            System.out.println("✅ Precios actualizados: " + affectedRows + " productos con " + porcentajeAumento + "% de aumento");
+            return affectedRows;
+            
+        } catch (SQLException e) {
+            System.err.println("❌ Error al actualizar precios: " + e.getMessage());
+        }
+        
+        return 0;
+    }
+    
+    /**
+     * Cuenta productos por categoría
+     */
+    public static int contarProductosPorCategoria(String categoria) {
+        String query;
+        
+        if (categoria == null || categoria.equals("TODOS")) {
+            query = "SELECT COUNT(*) as total FROM productos";
+        } else {
+            query = "SELECT COUNT(*) as total FROM productos WHERE categoria = ?";
+        }
+        
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(query)) {
+            
+            if (categoria != null && !categoria.equals("TODOS")) {
+                pstmt.setString(1, categoria);
+            }
+            
+            ResultSet rs = pstmt.executeQuery();
+            
+            if (rs.next()) {
+                return rs.getInt("total");
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("❌ Error al contar productos: " + e.getMessage());
+        }
+        
+        return 0;
+    }
+    
+    /**
+     * Obtiene vista previa de cambios de precios
+     */
+    public static List<String> obtenerVistaPreviaCambios(String categoria, double porcentajeAumento, int limit) {
+        List<String> previews = new ArrayList<>();
+        String query;
+        
+        if (categoria == null || categoria.equals("TODOS")) {
+            query = "SELECT codigo, descripcion, precio_unitario FROM productos ORDER BY codigo LIMIT ?";
+        } else {
+            query = "SELECT codigo, descripcion, precio_unitario FROM productos WHERE categoria = ? ORDER BY codigo LIMIT ?";
+        }
+        
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(query)) {
+            
+            int paramIndex = 1;
+            if (categoria != null && !categoria.equals("TODOS")) {
+                pstmt.setString(paramIndex++, categoria);
+            }
+            pstmt.setInt(paramIndex, limit);
+            
+            ResultSet rs = pstmt.executeQuery();
+            NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("es", "AR"));
+            
+            while (rs.next()) {
+                String codigo = rs.getString("codigo");
+                double precioActual = rs.getDouble("precio_unitario");
+                double precioNuevo = precioActual * (1 + porcentajeAumento / 100.0);
+                
+                String preview = String.format("%s: %s → %s", 
+                    codigo,
+                    currencyFormat.format(precioActual),
+                    currencyFormat.format(precioNuevo)
+                );
+                previews.add(preview);
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("❌ Error al obtener vista previa: " + e.getMessage());
+        }
+        
+        return previews;
     }
 }

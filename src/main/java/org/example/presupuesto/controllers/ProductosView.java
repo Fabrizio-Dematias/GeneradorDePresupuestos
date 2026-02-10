@@ -80,11 +80,15 @@ public class ProductosView extends VBox {
         btnNuevo.setStyle("-fx-background-color: #10b981; -fx-text-fill: white; -fx-font-size: 13px; -fx-padding: 8 15; -fx-cursor: hand;");
         btnNuevo.setOnAction(e -> abrirFormularioNuevo());
         
+        Button btnActualizarPrecios = new Button("💰 Actualizar Precios");
+        btnActualizarPrecios.setStyle("-fx-background-color: #f59e0b; -fx-text-fill: white; -fx-font-size: 13px; -fx-padding: 8 15; -fx-cursor: hand;");
+        btnActualizarPrecios.setOnAction(e -> abrirDialogoActualizarPrecios());
+        
         Button btnRefrescar = new Button("🔄 Refrescar");
         btnRefrescar.setStyle("-fx-font-size: 13px; -fx-padding: 8 15;");
         btnRefrescar.setOnAction(e -> cargarProductos());
         
-        toolbar.getChildren().addAll(searchField, totalProductosLabel, spacer, btnNuevo, btnRefrescar);
+        toolbar.getChildren().addAll(searchField, totalProductosLabel, spacer, btnNuevo, btnActualizarPrecios, btnRefrescar);
         container.getChildren().add(toolbar);
         
         return container;
@@ -308,6 +312,127 @@ public class ProductosView extends VBox {
                     Alert error = new Alert(Alert.AlertType.ERROR);
                     error.setTitle("Error");
                     error.setContentText("No se pudo eliminar el producto.");
+                    error.showAndWait();
+                }
+            }
+        });
+    }
+    
+    private void abrirDialogoActualizarPrecios() {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("💰 Actualizar Precios");
+        dialog.setHeaderText("Aplicar aumento de precios por categoría");
+        
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(15);
+        grid.setPadding(new Insets(20));
+        
+        // Porcentaje
+        Label lblPorcentaje = new Label("Porcentaje de aumento (%):");
+        TextField txtPorcentaje = new TextField();
+        txtPorcentaje.setPromptText("Ej: 15");
+        txtPorcentaje.setPrefWidth(100);
+        
+        // Selector de categoría
+        Label lblCategoria = new Label("Aplicar a:");
+        ComboBox<String> cmbCategoria = new ComboBox<>();
+        cmbCategoria.getItems().addAll("TODOS", "CARBONES", "INTERRUPTORES");
+        cmbCategoria.setValue("TODOS");
+        cmbCategoria.setPrefWidth(200);
+        
+        // Label con cantidad de productos
+        Label lblCantidad = new Label("");
+        lblCantidad.setStyle("-fx-text-fill: #6b7280; -fx-font-size: 12px;");
+        
+        // Actualizar cantidad cuando cambia la categoría
+        cmbCategoria.setOnAction(e -> {
+            String cat = cmbCategoria.getValue();
+            int cantidad = ProductoDAO.contarProductosPorCategoria(cat);
+            lblCantidad.setText("(" + cantidad + " productos)");
+        });
+        
+        // Inicializar cantidad
+        int cantidadInicial = ProductoDAO.contarProductosPorCategoria("TODOS");
+        lblCantidad.setText("(" + cantidadInicial + " productos)");
+        
+        // Vista previa
+        Label lblVistaPrevia = new Label("Vista previa (primeros 5):");
+        lblVistaPrevia.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
+        TextArea txtVistaPrevia = new TextArea();
+        txtVistaPrevia.setEditable(false);
+        txtVistaPrevia.setPrefRowCount(5);
+        txtVistaPrevia.setStyle("-fx-font-family: monospace; -fx-font-size: 11px;");
+        
+        // Botón para actualizar vista previa
+        Button btnVistaPrevia = new Button("🔍 Ver Vista Previa");
+        btnVistaPrevia.setStyle("-fx-font-size: 12px;");
+        btnVistaPrevia.setOnAction(e -> {
+            try {
+                double porcentaje = Double.parseDouble(txtPorcentaje.getText().trim());
+                String categoria = cmbCategoria.getValue();
+                
+                List<String> previews = ProductoDAO.obtenerVistaPreviaCambios(categoria, porcentaje, 5);
+                txtVistaPrevia.setText(String.join("\n", previews));
+                
+            } catch (NumberFormatException ex) {
+                txtVistaPrevia.setText("⚠️ Ingresá un porcentaje válido");
+            }
+        });
+        
+        grid.add(lblPorcentaje, 0, 0);
+        grid.add(txtPorcentaje, 1, 0);
+        grid.add(lblCategoria, 0, 1);
+        grid.add(cmbCategoria, 1, 1);
+        grid.add(lblCantidad, 2, 1);
+        grid.add(btnVistaPrevia, 1, 2);
+        grid.add(lblVistaPrevia, 0, 3);
+        grid.add(txtVistaPrevia, 0, 4, 3, 1);
+        
+        dialog.getDialogPane().setContent(grid);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        
+        dialog.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.OK) {
+                try {
+                    double porcentaje = Double.parseDouble(txtPorcentaje.getText().trim());
+                    String categoria = cmbCategoria.getValue();
+                    
+                    // Confirmación final
+                    Alert confirmacion = new Alert(Alert.AlertType.CONFIRMATION);
+                    confirmacion.setTitle("Confirmar actualización");
+                    confirmacion.setHeaderText("¿Aplicar aumento del " + porcentaje + "%?");
+                    
+                    int cantidad = ProductoDAO.contarProductosPorCategoria(categoria);
+                    confirmacion.setContentText(
+                        "Se actualizarán " + cantidad + " productos de la categoría: " + categoria + 
+                        "\n\nEsta acción no se puede deshacer."
+                    );
+                    
+                    confirmacion.showAndWait().ifPresent(confirmar -> {
+                        if (confirmar == ButtonType.OK) {
+                            int actualizados = ProductoDAO.actualizarPreciosPorCategoria(categoria, porcentaje);
+                            
+                            if (actualizados > 0) {
+                                Alert success = new Alert(Alert.AlertType.INFORMATION);
+                                success.setTitle("Precios actualizados");
+                                success.setHeaderText("✅ Actualización exitosa");
+                                success.setContentText(
+                                    "Se actualizaron " + actualizados + " productos.\n" +
+                                    "Aumento aplicado: " + porcentaje + "%"
+                                );
+                                success.showAndWait();
+                                
+                                // Recargar lista
+                                cargarProductos();
+                            }
+                        }
+                    });
+                    
+                } catch (NumberFormatException ex) {
+                    Alert error = new Alert(Alert.AlertType.ERROR);
+                    error.setTitle("Error");
+                    error.setContentText("Ingresá un porcentaje válido (número)");
                     error.showAndWait();
                 }
             }
