@@ -204,6 +204,7 @@ public class RemitoController {
                 Font fontNormal = FontFactory.getFont(FontFactory.HELVETICA, 10);
                 Font fontBold = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10);
                 Font fontRed = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, new Color(255, 0, 0));
+                Font fontSmall = FontFactory.getFont(FontFactory.HELVETICA, 9);
 
                 // Cabecera
                 PdfPTable headerTable = new PdfPTable(2);
@@ -247,11 +248,11 @@ public class RemitoController {
                 datosNegocio.addCell(celdaTexto("DICOR CARBONES Y REPUESTOS", fontBold));
                 datosNegocio.addCell(celdaTexto("de Fabrizio Dematias", fontNormal));
                 datosNegocio.addCell(celdaTexto("Los Cóndores 4814 - B° Alejandro Centeno - Córdoba", fontNormal));
-                datosNegocio.addCell(celdaTexto("dicorcarboness@gmail.com", fontNormal));
+                datosNegocio.addCell(celdaTexto("dicorcarbones@gmail.com", fontNormal));
 
                 // Datos del remito
                 PdfPTable datosRemito = new PdfPTable(1);
-                datosRemito.addCell(celdaTexto("REMITO", fontBold, Rectangle.NO_BORDER, Element.ALIGN_RIGHT));
+                datosRemito.addCell(celdaTexto("REMITO - ORIGINAL", fontBold, Rectangle.NO_BORDER, Element.ALIGN_RIGHT));
                 datosRemito.addCell(celdaTexto("N° " + remitoNumero.getText(), fontNormal, Rectangle.NO_BORDER, Element.ALIGN_RIGHT));
                 datosRemito.addCell(celdaTexto("Fecha: " + (fecha.getValue() != null ? fecha.getValue().toString() : ""), fontNormal, Rectangle.NO_BORDER, Element.ALIGN_RIGHT));
                 datosRemito.addCell(celdaTexto("CUIT: 20-42258265-8", fontNormal, Rectangle.NO_BORDER, Element.ALIGN_RIGHT));
@@ -267,17 +268,22 @@ public class RemitoController {
                 document.add(headerTable);
                 document.add(new Paragraph(" "));
 
-                // Datos del cliente
+                // Datos del cliente - MEJORADOS
                 PdfPTable clienteTable = new PdfPTable(2);
                 clienteTable.setWidthPercentage(100);
                 clienteTable.setSpacingBefore(5f);
                 clienteTable.setSpacingAfter(5f);
-                clienteTable.addCell(celdaTexto("SEÑOR: " + clienteNombre.getText(), fontNormal, Rectangle.BOX));
+                
+                clienteTable.addCell(celdaTexto("SEÑOR/RAZÓN SOCIAL: " + clienteNombre.getText(), fontNormal, Rectangle.BOX));
                 clienteTable.addCell(celdaTexto("DOMICILIO: " + clienteDomicilio.getText(), fontNormal, Rectangle.BOX));
-                clienteTable.addCell(celdaTexto("IVA: ___________________________", fontNormal, Rectangle.BOX));
-                clienteTable.addCell(celdaTexto("CONDICIONES DE VENTA: ____________________", fontNormal, Rectangle.BOX));
-                clienteTable.addCell(celdaTexto("CUIT CLIENTE: " + clienteCUIT.getText(), fontNormal, Rectangle.BOX));
-                clienteTable.addCell(celdaTexto(" ", fontNormal, Rectangle.NO_BORDER));
+                
+                // Formatear CUIT con guiones
+                String cuitCliente = clienteCUIT.getText().trim();
+                String cuitFormateado = formatearCUIT(cuitCliente);
+                clienteTable.addCell(celdaTexto("CUIT: " + cuitFormateado, fontNormal, Rectangle.BOX));
+                
+                clienteTable.addCell(celdaTexto("CONDICIÓN IVA: Consumidor Final", fontNormal, Rectangle.BOX));
+                clienteTable.addCell(celdaTexto("CONDICIONES DE VENTA: Contado", fontNormal, Rectangle.BOX, Element.ALIGN_LEFT, 2));
 
                 document.add(clienteTable);
                 document.add(new com.lowagie.text.Chunk(new LineSeparator(1f, 100, null, Element.ALIGN_CENTER, -2)));
@@ -300,7 +306,8 @@ public class RemitoController {
                     tabla.addCell(new Phrase(String.valueOf(item.cantidadProperty().get()), fontNormal));
                     tabla.addCell(new Phrase(item.descripcionProperty().get(), fontNormal));
                     tabla.addCell(new Phrase("$" + String.format("%,.2f", item.precioUnitarioProperty().get()), fontNormal));
-                    tabla.addCell(new Phrase(String.format("%,.2f", item.bonificacionProperty().get()), fontNormal));
+                    // AGREGAR % en bonificación
+                    tabla.addCell(new Phrase(String.format("%,.2f%%", item.bonificacionProperty().get()), fontNormal));
                     tabla.addCell(new Phrase("$" + String.format("%,.2f", item.precioTotalProperty().get()), fontNormal));
                 }
 
@@ -310,6 +317,22 @@ public class RemitoController {
                 Paragraph totalParrafo = new Paragraph("TOTAL: " + totalField.getText(), fontBold);
                 totalParrafo.setAlignment(Element.ALIGN_RIGHT);
                 document.add(totalParrafo);
+                
+                // Agregar espacio
+                document.add(new Paragraph(" "));
+                
+                // Campo de OBSERVACIONES
+                Paragraph observacionesTitulo = new Paragraph("OBSERVACIONES:", fontBold);
+                document.add(observacionesTitulo);
+                
+                PdfPTable observacionesTable = new PdfPTable(1);
+                observacionesTable.setWidthPercentage(100);
+                observacionesTable.setSpacingBefore(5f);
+                PdfPCell observacionesCell = new PdfPCell(new Phrase(" ", fontNormal));
+                observacionesCell.setFixedHeight(30f);
+                observacionesCell.setBorder(Rectangle.BOX);
+                observacionesTable.addCell(observacionesCell);
+                document.add(observacionesTable);
 
                 document.close();
                 
@@ -440,6 +463,28 @@ public class RemitoController {
         // Focus en código para empezar de nuevo
         inputCodigo.requestFocus();
     }
+    
+    /**
+     * Formatea un CUIT agregando guiones si no los tiene
+     */
+    private String formatearCUIT(String cuit) {
+        if (cuit == null || cuit.isEmpty()) {
+            return "";
+        }
+        
+        // Eliminar guiones existentes y espacios
+        String cuitLimpio = cuit.replaceAll("[^0-9]", "");
+        
+        // Si tiene 11 dígitos, formatear como XX-XXXXXXXX-X
+        if (cuitLimpio.length() == 11) {
+            return cuitLimpio.substring(0, 2) + "-" + 
+                   cuitLimpio.substring(2, 10) + "-" + 
+                   cuitLimpio.substring(10);
+        }
+        
+        // Si no tiene 11 dígitos, devolver como está
+        return cuit;
+    }
 
     private PdfPCell celdaTexto(String texto, Font fuente) {
         return celdaTexto(texto, fuente, Rectangle.NO_BORDER, Element.ALIGN_LEFT);
@@ -454,6 +499,15 @@ public class RemitoController {
         celda.setBorder(borde);
         celda.setHorizontalAlignment(alineacion);
         celda.setPadding(5);
+        return celda;
+    }
+    
+    private PdfPCell celdaTexto(String texto, Font fuente, int borde, int alineacion, int colspan) {
+        PdfPCell celda = new PdfPCell(new Phrase(texto, fuente));
+        celda.setBorder(borde);
+        celda.setHorizontalAlignment(alineacion);
+        celda.setPadding(5);
+        celda.setColspan(colspan);
         return celda;
     }
 }
