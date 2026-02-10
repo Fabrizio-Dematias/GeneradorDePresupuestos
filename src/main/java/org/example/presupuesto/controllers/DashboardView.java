@@ -13,6 +13,7 @@ import javafx.stage.Stage;
 import javafx.fxml.FXMLLoader;
 import org.example.presupuesto.dao.DatabaseManager;
 import org.example.presupuesto.dao.RemitoDAO;
+import org.example.presupuesto.dao.ProductoDAO;
 
 import java.text.NumberFormat;
 import java.util.Locale;
@@ -23,6 +24,7 @@ public class DashboardView extends VBox {
     private Label totalFacturadoLabel;
     private Label ultimoRemitoLabel;
     private Label badgeRemitos;
+    private Label badgeProductos;
     
     private final Locale localeAR = new Locale("es", "AR");
     private final NumberFormat currencyFormatter = NumberFormat.getCurrencyInstance(localeAR);
@@ -113,10 +115,12 @@ public class DashboardView extends VBox {
         module2.setOnMouseClicked(e -> verListaRemitos());
         module2.setStyle(module2.getStyle() + "; -fx-cursor: hand;");
         
-        VBox module3 = createModuleCard("📦", "Productos", "Próximamente", false);
-        Label badge = new Label("Próximamente");
-        badge.setStyle("-fx-background-color: orange; -fx-text-fill: white; -fx-padding: 5 10; -fx-background-radius: 15; -fx-font-size: 11px;");
-        module3.getChildren().add(badge);
+        VBox module3 = createModuleCard("📦", "Productos", "Catálogo de productos", true);
+        badgeProductos = new Label("0 productos");
+        badgeProductos.setStyle("-fx-background-color: #f59e0b; -fx-text-fill: white; -fx-padding: 5 10; -fx-background-radius: 15; -fx-font-size: 11px;");
+        module3.getChildren().add(badgeProductos);
+        module3.setOnMouseClicked(e -> verProductos());
+        module3.setStyle(module3.getStyle() + "; -fx-cursor: hand;");
         
         modulesBox.getChildren().addAll(module1, module2, module3);
         container.getChildren().addAll(title, modulesBox);
@@ -169,6 +173,10 @@ public class DashboardView extends VBox {
                 ultimoRemitoLabel.setText("Sin remitos");
             }
             
+            // Actualizar badge de productos
+            int totalProductos = ProductoDAO.contarProductos();
+            badgeProductos.setText(totalProductos + " productos");
+            
             System.out.println("📊 Estadísticas cargadas");
         } catch (Exception e) {
             System.err.println("❌ Error: " + e.getMessage());
@@ -205,7 +213,6 @@ public class DashboardView extends VBox {
             stage.setScene(scene);
             stage.centerOnScreen();
             
-            // Cuando se cierre, actualizar estadísticas del dashboard
             stage.setOnHidden(event -> cargarEstadisticas());
             
             stage.show();
@@ -215,6 +222,32 @@ public class DashboardView extends VBox {
             Alert alert = new Alert(Alert.AlertType.ERROR);
             alert.setTitle("Error");
             alert.setContentText("No se pudo abrir la lista: " + e.getMessage());
+            alert.showAndWait();
+        }
+    }
+    
+    private void verProductos() {
+        try {
+            System.out.println("📦 Abriendo catálogo de productos...");
+            
+            ProductosView productosView = new ProductosView();
+            Scene scene = new Scene(productosView, 1200, 700);
+            
+            Stage stage = new Stage();
+            stage.setTitle("Catálogo de Productos - DICOR");
+            stage.setScene(scene);
+            stage.centerOnScreen();
+            
+            // Cuando se cierre, actualizar estadísticas del dashboard
+            stage.setOnHidden(event -> cargarEstadisticas());
+            
+            stage.show();
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Error");
+            alert.setContentText("No se pudo abrir el catálogo: " + e.getMessage());
             alert.showAndWait();
         }
     }

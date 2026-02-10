@@ -95,33 +95,56 @@
       <TextField fx:id="totalField" editable="false"/>
     </HBox>
 
-    <!-- Agregar nuevo producto -->
-    <VBox spacing="10">
-
-      <HBox spacing="20" alignment="CENTER_LEFT">
-        <Label text="Código:"/>
-        <TextField fx:id="inputCodigo" prefWidth="120"/>
-        <Label text="Cantidad:"/>
-        <TextField fx:id="inputCantidad" prefWidth="120"/>
+    <!-- Agregar nuevo producto - MEJORADO -->
+    <VBox spacing="15" style="-fx-border-color: #e5e7eb; -fx-border-width: 2; -fx-border-radius: 8; -fx-padding: 20; -fx-background-color: #f9fafb; -fx-background-radius: 8;">
+      
+      <Label text="➕ Agregar Producto" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
+      
+      <!-- Fila 1: Código (con autocompletado) -->
+      <HBox spacing="10" alignment="CENTER_LEFT">
+        <Label text="Código:" prefWidth="120" style="-fx-font-weight: bold;"/>
+        <TextField fx:id="inputCodigo" prefWidth="150" promptText="Ej: 401"/>
+        <Label fx:id="lblEstadoCodigo" text="" style="-fx-text-fill: green; -fx-font-size: 12px;"/>
       </HBox>
 
-      <HBox spacing="20" alignment="CENTER_LEFT">
-        <Label text="Descripción:"/>
-        <TextField fx:id="inputDescripcion" prefWidth="400"/>
+      <!-- Fila 2: Descripción (autocompletada) -->
+      <HBox spacing="10" alignment="CENTER_LEFT">
+        <Label text="Descripción:" prefWidth="120" style="-fx-font-weight: bold;"/>
+        <TextField fx:id="inputDescripcion" prefWidth="500" promptText="Se completa automáticamente al ingresar código"/>
       </HBox>
 
+      <!-- Fila 3: Cantidad y Precio -->
       <HBox spacing="20" alignment="CENTER_LEFT">
-        <Label text="P. Unitario:"/>
-        <TextField fx:id="inputPrecioUnitario" prefWidth="120"/>
-        <Label text="Bonificación (%):"/>
-        <TextField fx:id="inputBonificacion" prefWidth="120"/>
+        <VBox spacing="5">
+          <Label text="Cantidad:" style="-fx-font-weight: bold;"/>
+          <TextField fx:id="inputCantidad" prefWidth="100" promptText="Ej: 2"/>
+        </VBox>
+        
+        <VBox spacing="5">
+          <Label text="Precio Unitario:" style="-fx-font-weight: bold;"/>
+          <TextField fx:id="inputPrecioUnitario" prefWidth="150" promptText="Se autocompleta"/>
+        </VBox>
+        
+        <VBox spacing="5">
+          <Label text="Bonificación (%):" style="-fx-font-weight: bold;"/>
+          <TextField fx:id="inputBonificacion" prefWidth="100" promptText="Ej: 10" text="0"/>
+        </VBox>
       </HBox>
 
+      <!-- Botones -->
       <HBox spacing="15" alignment="CENTER">
-        <Button text="Agregar producto" onAction="#agregarProducto"/>
-        <Button text="Eliminar producto seleccionado" onAction="#eliminarProducto"/>
-        <Button text="Guardar como PDF" onAction="#exportarComoPDF"/>
+        <Button text="✅ Agregar Producto" onAction="#agregarProducto" 
+                style="-fx-background-color: #10b981; -fx-text-fill: white; -fx-font-size: 14px; -fx-padding: 10 20; -fx-cursor: hand;"/>
+        <Button text="❌ Limpiar Campos" onAction="#limpiarCamposProducto"
+                style="-fx-background-color: #6b7280; -fx-text-fill: white; -fx-font-size: 14px; -fx-padding: 10 20; -fx-cursor: hand;"/>
+        <Button text="🗑️ Eliminar Seleccionado" onAction="#eliminarProducto"
+                style="-fx-background-color: #ef4444; -fx-text-fill: white; -fx-font-size: 14px; -fx-padding: 10 20; -fx-cursor: hand;"/>
+        <Button text="💾 Guardar como PDF" onAction="#exportarComoPDF"
+                style="-fx-background-color: #3b82f6; -fx-text-fill: white; -fx-font-size: 14px; -fx-padding: 10 20; -fx-cursor: hand;"/>
       </HBox>
+      
+      <Label text="💡 Tip: Escribí el código del producto y presioná TAB o ENTER para autocompletar" 
+             style="-fx-text-fill: #6b7280; -fx-font-size: 11px; -fx-font-style: italic;"/>
     </VBox>
   </VBox>
 </ScrollPane>

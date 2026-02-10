@@ -10,6 +10,8 @@ import javafx.stage.FileChooser;
 
 import org.example.presupuesto.dao.DatabaseManager;
 import org.example.presupuesto.dao.RemitoDAO;
+import org.example.presupuesto.dao.ProductoDAO;
+import org.example.presupuesto.models.Producto;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -56,6 +58,7 @@ public class RemitoController {
     @FXML private TextField clienteNombre;
     @FXML private TextField clienteDomicilio;
     @FXML private TextField clienteCUIT;
+    @FXML private Label lblEstadoCodigo;
 
     private final Locale localeAR = new Locale("es", "AR");
     private final NumberFormat currencyFormatter = NumberFormat.getCurrencyInstance(localeAR);
@@ -102,6 +105,14 @@ public class RemitoController {
         String nextNumber = DatabaseManager.getNextRemitoNumber();
         remitoNumero.setText(nextNumber);
         System.out.println("📄 Próximo número de remito: " + nextNumber);
+        
+        // Configurar autocompletado por código
+        inputCodigo.setOnAction(e -> buscarProductoPorCodigo());
+        inputCodigo.focusedProperty().addListener((obs, oldVal, newVal) -> {
+            if (!newVal) { // Cuando pierde el foco
+                buscarProductoPorCodigo();
+            }
+        });
     }
 
     @FXML
@@ -116,12 +127,7 @@ public class RemitoController {
             Remito nuevo = new Remito(codigo, cantidad, descripcion, precioUnitario, bonificacion);
             tablaProductos.getItems().add(nuevo);
 
-            inputCodigo.clear();
-            inputCantidad.clear();
-            inputDescripcion.clear();
-            inputPrecioUnitario.clear();
-            inputBonificacion.clear();
-
+            limpiarCamposProducto();
             recalcularTotal();
 
         } catch (NumberFormatException e) {
@@ -307,7 +313,7 @@ public class RemitoController {
 
                 document.close();
                 
-                // ⭐ NUEVO: Guardar en base de datos
+                // Guardar en base de datos
                 guardarEnBaseDatos(file.getAbsolutePath());
 
                 Alert alert = new Alert(Alert.AlertType.INFORMATION);
@@ -328,38 +334,30 @@ public class RemitoController {
     }
     
     /**
-     * ⭐ NUEVO MÉTODO: Guarda el remito en la base de datos
+     * Guarda el remito en la base de datos
      */
     private void guardarEnBaseDatos(String rutaPDF) {
         try {
-            // Obtener datos del remito
             String numero = remitoNumero.getText();
             String fechaStr = fecha.getValue() != null ? fecha.getValue().toString() : "";
             String nombre = clienteNombre.getText();
             String domicilio = clienteDomicilio.getText();
             String cuit = clienteCUIT.getText();
             
-            // Calcular total
             double total = 0;
             for (Remito r : tablaProductos.getItems()) {
                 total += r.precioTotalProperty().get();
             }
             
-            // Convertir items a lista
             List<Remito> items = new ArrayList<>(tablaProductos.getItems());
             
-            // Guardar en BD
             boolean guardado = RemitoDAO.guardarRemito(
                 numero, fechaStr, nombre, domicilio, cuit, total, items, rutaPDF
             );
             
             if (guardado) {
                 System.out.println("✅ Remito guardado en la base de datos");
-                
-                // Limpiar formulario y preparar para el siguiente
                 limpiarFormulario();
-                
-                // Obtener siguiente número
                 String nextNumber = DatabaseManager.getNextRemitoNumber();
                 remitoNumero.setText(nextNumber);
             } else {
@@ -381,11 +379,66 @@ public class RemitoController {
         clienteCUIT.clear();
         tablaProductos.getItems().clear();
         totalField.clear();
+        limpiarCamposProducto();
+    }
+    
+    /**
+     * Busca un producto por código y autocompleta los campos
+     */
+    private void buscarProductoPorCodigo() {
+        String codigo = inputCodigo.getText().trim();
+        
+        if (codigo.isEmpty()) {
+            lblEstadoCodigo.setText("");
+            return;
+        }
+        
+        try {
+            Producto producto = ProductoDAO.buscarPorCodigo(codigo);
+            
+            if (producto != null) {
+                // Autocompletar descripción y precio
+                inputDescripcion.setText(producto.getDescripcion());
+                inputPrecioUnitario.setText(String.valueOf(producto.getPrecioUnitario()));
+                
+                // Mensaje de éxito
+                lblEstadoCodigo.setText("✓ Producto encontrado");
+                lblEstadoCodigo.setStyle("-fx-text-fill: #10b981; -fx-font-weight: bold;");
+                
+                // Focus en cantidad
+                inputCantidad.requestFocus();
+                
+                System.out.println("✅ Producto autocompletado: " + producto.getDescripcion());
+                
+            } else {
+                // Producto no encontrado
+                lblEstadoCodigo.setText("⚠ Código no encontrado");
+                lblEstadoCodigo.setStyle("-fx-text-fill: #ef4444; -fx-font-weight: bold;");
+                inputDescripcion.clear();
+                inputPrecioUnitario.clear();
+            }
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error al buscar producto: " + e.getMessage());
+            lblEstadoCodigo.setText("✗ Error al buscar");
+            lblEstadoCodigo.setStyle("-fx-text-fill: #ef4444;");
+        }
+    }
+    
+    /**
+     * Limpia los campos del formulario de producto
+     */
+    @FXML
+    private void limpiarCamposProducto() {
         inputCodigo.clear();
         inputCantidad.clear();
         inputDescripcion.clear();
         inputPrecioUnitario.clear();
-        inputBonificacion.clear();
+        inputBonificacion.setText("0");
+        lblEstadoCodigo.setText("");
+        
+        // Focus en código para empezar de nuevo
+        inputCodigo.requestFocus();
     }
 
     private PdfPCell celdaTexto(String texto, Font fuente) {
