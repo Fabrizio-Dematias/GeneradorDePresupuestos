@@ -1,33 +1,36 @@
 package org.example.presupuesto;
 
 import javafx.application.Application;
-import javafx.scene.Scene;
 import javafx.stage.Stage;
 import org.example.presupuesto.controllers.DashboardView;
 import org.example.presupuesto.dao.DatabaseManager;
+import org.example.presupuesto.utils.NavigationManager;
+
+import java.io.IOException;
 
 public class HelloApplication extends Application {
+    
     @Override
-    public void start(Stage stage) throws Exception {
-        System.out.println("🚀 Iniciando aplicación DICOR...");
-        DatabaseManager.initializeDatabase();
-        
-        DashboardView dashboardView = new DashboardView();
-        Scene scene = new Scene(dashboardView, 1000, 700);
+    public void start(Stage stage) throws IOException {
 
+        
+        // Inicializar el gestor de navegación
+        NavigationManager navigationManager = NavigationManager.getInstance();
+        navigationManager.initialize(stage);
+        
+        // Configurar ventana principal
         stage.setTitle("DICOR - Sistema de Gestión");
-        stage.setScene(scene);
-        stage.centerOnScreen();
+        stage.setWidth(1400);
+        stage.setHeight(900);
+        stage.setMaximized(true); // Iniciar maximizado por defecto
+        
+        // Navegar al Dashboard
+        DashboardView dashboard = new DashboardView();
+        navigationManager.navigateTo(dashboard);
+        
         stage.show();
         
         System.out.println("✅ Aplicación iniciada correctamente");
-    }
-    
-    @Override
-    public void stop() {
-        System.out.println("🛑 Cerrando aplicación...");
-        DatabaseManager.closeConnection();
-        System.out.println("👋 Aplicación cerrada");
     }
 
     public static void main(String[] args) {

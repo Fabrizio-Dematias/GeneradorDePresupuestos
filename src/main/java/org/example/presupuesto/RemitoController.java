@@ -7,6 +7,8 @@ import javafx.scene.control.TableCell;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.stage.FileChooser;
+import javafx.stage.Stage;
+import javafx.geometry.Insets;
 
 import org.example.presupuesto.dao.DatabaseManager;
 import org.example.presupuesto.dao.RemitoDAO;
@@ -65,6 +67,9 @@ public class RemitoController {
 
     @FXML
     public void initialize() {
+        // Crear botón Volver
+        crearBotonVolver();
+        
         // Cargar logo con manejo de errores
         try {
             Image logo = new Image(getClass().getResourceAsStream("/logo.png"));
@@ -484,6 +489,85 @@ public class RemitoController {
         
         // Si no tiene 11 dígitos, devolver como está
         return cuit;
+    }
+    
+    /**
+     * Crea el botón Volver al Dashboard
+     */
+    private void crearBotonVolver() {
+        try {
+            // Esperar a que la escena esté lista
+            logoImage.sceneProperty().addListener((obs, oldScene, newScene) -> {
+                if (newScene != null) {
+                    agregarBotonVolverAEscena();
+                }
+            });
+        } catch (Exception e) {
+            System.err.println("⚠️ No se pudo agregar el botón Volver: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Agrega el botón Volver a la escena
+     */
+    private void agregarBotonVolverAEscena() {
+        try {
+            javafx.scene.Parent root = logoImage.getParent();
+            
+            // Buscar el contenedor principal
+            while (root != null && !(root instanceof javafx.scene.layout.VBox)) {
+                root = root.getParent();
+            }
+            
+            if (root instanceof javafx.scene.layout.VBox) {
+                javafx.scene.layout.VBox vbox = (javafx.scene.layout.VBox) root;
+                
+                // Crear botón
+                Button btnVolver = new Button("← Volver al Dashboard");
+                btnVolver.setStyle(
+                    "-fx-background-color: #3b82f6; " +
+                    "-fx-text-fill: white; " +
+                    "-fx-font-size: 13px; " +
+                    "-fx-font-weight: bold; " +
+                    "-fx-padding: 8 15; " +
+                    "-fx-cursor: hand; " +
+                    "-fx-background-radius: 5;"
+                );
+                
+                btnVolver.setOnMouseEntered(e -> btnVolver.setStyle(
+                    "-fx-background-color: #2563eb; " +
+                    "-fx-text-fill: white; " +
+                    "-fx-font-size: 13px; " +
+                    "-fx-font-weight: bold; " +
+                    "-fx-padding: 8 15; " +
+                    "-fx-cursor: hand; " +
+                    "-fx-background-radius: 5;"
+                ));
+                
+                btnVolver.setOnMouseExited(e -> btnVolver.setStyle(
+                    "-fx-background-color: #3b82f6; " +
+                    "-fx-text-fill: white; " +
+                    "-fx-font-size: 13px; " +
+                    "-fx-font-weight: bold; " +
+                    "-fx-padding: 8 15; " +
+                    "-fx-cursor: hand; " +
+                    "-fx-background-radius: 5;"
+                ));
+                
+                btnVolver.setOnAction(e -> {
+                    Stage stage = (Stage) btnVolver.getScene().getWindow();
+                    stage.close();
+                });
+                
+                // Agregar al inicio
+                vbox.getChildren().add(0, btnVolver);
+                javafx.scene.layout.VBox.setMargin(btnVolver, new Insets(10, 10, 5, 10));
+                
+                System.out.println("✅ Botón Volver agregado a Crear Remito");
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ Error al agregar botón Volver: " + e.getMessage());
+        }
     }
 
     private PdfPCell celdaTexto(String texto, Font fuente) {

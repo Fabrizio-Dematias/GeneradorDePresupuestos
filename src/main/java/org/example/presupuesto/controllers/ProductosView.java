@@ -13,6 +13,7 @@ import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import org.example.presupuesto.dao.ProductoDAO;
 import org.example.presupuesto.models.Producto;
+import org.example.presupuesto.utils.NavigationManager;
 
 import java.text.NumberFormat;
 import java.util.List;
@@ -61,8 +62,8 @@ public class ProductosView extends VBox {
             "-fx-background-radius: 5;"
         );
         btnVolver.setOnAction(e -> {
-            Stage stage = (Stage) this.getScene().getWindow();
-            stage.close();
+            DashboardView dashboard = new DashboardView();
+            NavigationManager.getInstance().navigateTo(dashboard);
         });
         
         // Hover effect

@@ -12,6 +12,7 @@ import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import org.example.presupuesto.dao.RemitoDAO;
 import org.example.presupuesto.dao.ProductoDAO;
+import org.example.presupuesto.utils.NavigationManager;
 
 import java.text.NumberFormat;
 import java.util.Locale;
@@ -188,7 +189,7 @@ public class DashboardView extends VBox {
         module5.setOnMouseClicked(e -> verProductosMasVendidos());
         module5.setCursor(javafx.scene.Cursor.HAND);
 
-        // Módulo 6: Facturación Mensual (NUEVO)
+        // Módulo 6: Facturación Mensual
         VBox module6 = createModuleBox(
             "💰",
             "Facturación Mensual",
@@ -276,7 +277,7 @@ public class DashboardView extends VBox {
         return box;
     }
 
-    private void cargarEstadisticas() {
+    public void cargarEstadisticas() {
         try {
             // Cargar estadísticas de remitos
             int totalRemitos = RemitoDAO.contarRemitos();
@@ -328,51 +329,26 @@ public class DashboardView extends VBox {
 
     private void verListaRemitos() {
         ListaRemitosView listaView = new ListaRemitosView();
-        Scene scene = new Scene(listaView, 1200, 700);
-        Stage stage = new Stage();
-        stage.setTitle("Lista de Remitos - DICOR");
-        stage.setScene(scene);
-        stage.setOnHidden(event -> cargarEstadisticas());
-        stage.show();
+        NavigationManager.getInstance().navigateTo(listaView);
     }
 
     private void verProductos() {
         ProductosView productosView = new ProductosView();
-        Scene scene = new Scene(productosView, 1200, 700);
-        Stage stage = new Stage();
-        stage.setTitle("Catálogo de Productos - DICOR");
-        stage.setScene(scene);
-        stage.setOnHidden(event -> cargarEstadisticas());
-        stage.show();
+        NavigationManager.getInstance().navigateTo(productosView);
     }
 
     private void verHistorialPrecios() {
         HistorialPreciosView historialView = new HistorialPreciosView();
-        Scene scene = new Scene(historialView, 1200, 700);
-        Stage stage = new Stage();
-        stage.setTitle("Historial de Cambios de Precios - DICOR");
-        stage.setScene(scene);
-        stage.setOnHidden(event -> cargarEstadisticas());
-        stage.show();
+        NavigationManager.getInstance().navigateTo(historialView);
     }
 
     private void verProductosMasVendidos() {
         ProductosMasVendidosView reportesView = new ProductosMasVendidosView();
-        Scene scene = new Scene(reportesView, 1400, 800);
-        Stage stage = new Stage();
-        stage.setTitle("Productos Más Vendidos - DICOR");
-        stage.setScene(scene);
-        stage.setOnHidden(event -> cargarEstadisticas());
-        stage.show();
+        NavigationManager.getInstance().navigateTo(reportesView);
     }
 
     private void verFacturacionMensual() {
         FacturacionMensualView facturacionView = new FacturacionMensualView();
-        Scene scene = new Scene(facturacionView, 1400, 800);
-        Stage stage = new Stage();
-        stage.setTitle("Facturación Mensual - DICOR");
-        stage.setScene(scene);
-        stage.setOnHidden(event -> cargarEstadisticas());
-        stage.show();
+        NavigationManager.getInstance().navigateTo(facturacionView);
     }
 }

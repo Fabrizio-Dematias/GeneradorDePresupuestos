@@ -13,8 +13,11 @@ import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import org.example.presupuesto.dao.HistorialPreciosDAO;
 import org.example.presupuesto.models.HistorialPrecio;
+import org.example.presupuesto.utils.NavigationManager;
 
 import java.text.NumberFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
 
@@ -22,12 +25,13 @@ public class HistorialPreciosView extends VBox {
     
     private TableView<HistorialPrecio> tablaHistorial;
     private TextField searchField;
-    private Label totalRegistrosLabel;
     private ComboBox<String> cmbCategoria;
+    private Label totalRegistrosLabel;
     private ObservableList<HistorialPrecio> todosLosRegistros;
     
     private final Locale localeAR = new Locale("es", "AR");
     private final NumberFormat currencyFormatter = NumberFormat.getCurrencyInstance(localeAR);
+    private final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
     
     public HistorialPreciosView() {
         setSpacing(20);
@@ -47,12 +51,12 @@ public class HistorialPreciosView extends VBox {
         header.setAlignment(Pos.CENTER_LEFT);
         header.setSpacing(15);
         header.setPadding(new Insets(20));
-        header.setStyle("-fx-background-color: #7c3aed; -fx-background-radius: 10;");
+        header.setStyle("-fx-background-color: #6d28d9; -fx-background-radius: 10;");
         
         // Botón Volver
         Button btnVolver = new Button("← Volver");
         btnVolver.setStyle(
-            "-fx-background-color: #6d28d9; " +
+            "-fx-background-color: #8b5cf6; " +
             "-fx-text-fill: white; " +
             "-fx-font-size: 14px; " +
             "-fx-font-weight: bold; " +
@@ -61,8 +65,8 @@ public class HistorialPreciosView extends VBox {
             "-fx-background-radius: 5;"
         );
         btnVolver.setOnAction(e -> {
-            Stage stage = (Stage) this.getScene().getWindow();
-            stage.close();
+            DashboardView dashboard = new DashboardView();
+            NavigationManager.getInstance().navigateTo(dashboard);
         });
         
         // Hover effect
@@ -76,7 +80,7 @@ public class HistorialPreciosView extends VBox {
             "-fx-background-radius: 5;"
         ));
         btnVolver.setOnMouseExited(e -> btnVolver.setStyle(
-            "-fx-background-color: #6d28d9; " +
+            "-fx-background-color: #8b5cf6; " +
             "-fx-text-fill: white; " +
             "-fx-font-size: 14px; " +
             "-fx-font-weight: bold; " +
@@ -107,26 +111,26 @@ public class HistorialPreciosView extends VBox {
         searchField.setPromptText("🔍 Buscar por código o descripción...");
         searchField.setPrefWidth(300);
         searchField.setStyle("-fx-font-size: 14px; -fx-padding: 8;");
-        searchField.textProperty().addListener((obs, old, newValue) -> filtrarHistorial(newValue));
+        searchField.textProperty().addListener((obs, old, newValue) -> filtrarHistorial());
         
         // Filtro por categoría
         Label lblCategoria = new Label("Categoría:");
-        lblCategoria.setStyle("-fx-font-weight: bold;");
+        lblCategoria.setStyle("-fx-font-weight: bold; -fx-font-size: 13px;");
         
         cmbCategoria = new ComboBox<>();
-        cmbCategoria.getItems().addAll("TODAS", "CARBONES", "INTERRUPTORES");
+        cmbCategoria.getItems().addAll("TODAS", "CARBONES", "INTERRUPTORES", "REPUESTOS VARIOS");
         cmbCategoria.setValue("TODAS");
-        cmbCategoria.setPrefWidth(150);
-        cmbCategoria.setOnAction(e -> filtrarPorCategoria());
+        cmbCategoria.setPrefWidth(180);
+        cmbCategoria.setStyle("-fx-font-size: 13px;");
+        cmbCategoria.setOnAction(e -> filtrarHistorial());
         
         // Label de total
-        totalRegistrosLabel = new Label("Total: 0 registros");
-        totalRegistrosLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+        totalRegistrosLabel = new Label("Total: 0 cambios");
+        totalRegistrosLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #1f2937;");
         
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         
-        // Botón refrescar
         Button btnRefrescar = new Button("🔄 Refrescar");
         btnRefrescar.setStyle("-fx-font-size: 13px; -fx-padding: 8 15;");
         btnRefrescar.setOnAction(e -> cargarHistorial());
@@ -145,18 +149,18 @@ public class HistorialPreciosView extends VBox {
         tablaHistorial.setPrefHeight(500);
         
         // Columna Fecha
-        TableColumn<HistorialPrecio, String> colFecha = new TableColumn<>("Fecha");
+        TableColumn<HistorialPrecio, LocalDateTime> colFecha = new TableColumn<>("Fecha/Hora");
         colFecha.setCellValueFactory(new PropertyValueFactory<>("fechaCambio"));
-        colFecha.setPrefWidth(150);
+        colFecha.setPrefWidth(140);
+        colFecha.setStyle("-fx-alignment: CENTER;");
         colFecha.setCellFactory(column -> new TableCell<>() {
             @Override
-            protected void updateItem(String fecha, boolean empty) {
-                super.updateItem(fecha, empty);
-                if (empty || fecha == null) {
+            protected void updateItem(LocalDateTime value, boolean empty) {
+                super.updateItem(value, empty);
+                if (empty || value == null) {
                     setText("");
                 } else {
-                    // Mostrar solo fecha y hora sin milisegundos
-                    setText(fecha.substring(0, Math.min(fecha.length(), 19)));
+                    setText(value.format(dateTimeFormatter));
                 }
             }
         });
@@ -170,7 +174,13 @@ public class HistorialPreciosView extends VBox {
         // Columna Descripción
         TableColumn<HistorialPrecio, String> colDescripcion = new TableColumn<>("Descripción");
         colDescripcion.setCellValueFactory(new PropertyValueFactory<>("productoDescripcion"));
-        colDescripcion.setPrefWidth(250);
+        colDescripcion.setPrefWidth(300);
+        
+        // Columna Categoría
+        TableColumn<HistorialPrecio, String> colCategoria = new TableColumn<>("Categoría");
+        colCategoria.setCellValueFactory(new PropertyValueFactory<>("categoria"));
+        colCategoria.setPrefWidth(130);
+        colCategoria.setStyle("-fx-alignment: CENTER;");
         
         // Columna Precio Anterior
         TableColumn<HistorialPrecio, Double> colPrecioAnterior = new TableColumn<>("Precio Anterior");
@@ -185,7 +195,7 @@ public class HistorialPreciosView extends VBox {
                     setText("");
                 } else {
                     setText(currencyFormatter.format(value));
-                    setStyle("-fx-text-fill: #6b7280;");
+                    setStyle("-fx-text-fill: #ef4444;");
                 }
             }
         });
@@ -208,7 +218,7 @@ public class HistorialPreciosView extends VBox {
             }
         });
         
-        // Columna Cambio %
+        // Columna Cambio
         TableColumn<HistorialPrecio, Double> colCambio = new TableColumn<>("Cambio %");
         colCambio.setCellValueFactory(new PropertyValueFactory<>("porcentajeCambio"));
         colCambio.setPrefWidth(100);
@@ -220,7 +230,9 @@ public class HistorialPreciosView extends VBox {
                 if (empty || value == null) {
                     setText("");
                 } else {
-                    setText(String.format("%+.2f%%", value));
+                    String signo = value >= 0 ? "+" : "";
+                    setText(signo + String.format("%.1f%%", value));
+                    
                     if (value > 0) {
                         setStyle("-fx-font-weight: bold; -fx-text-fill: #10b981;");
                     } else if (value < 0) {
@@ -230,13 +242,11 @@ public class HistorialPreciosView extends VBox {
             }
         });
         
-        // Columna Categoría
-        TableColumn<HistorialPrecio, String> colCategoria = new TableColumn<>("Categoría");
-        colCategoria.setCellValueFactory(new PropertyValueFactory<>("categoria"));
-        colCategoria.setPrefWidth(120);
-        colCategoria.setStyle("-fx-alignment: CENTER;");
+        tablaHistorial.getColumns().addAll(
+            colFecha, colCodigo, colDescripcion, colCategoria, 
+            colPrecioAnterior, colPrecioNuevo, colCambio
+        );
         
-        tablaHistorial.getColumns().addAll(colFecha, colCodigo, colDescripcion, colPrecioAnterior, colPrecioNuevo, colCambio, colCategoria);
         container.getChildren().add(tablaHistorial);
         
         return container;
@@ -244,12 +254,12 @@ public class HistorialPreciosView extends VBox {
     
     private void cargarHistorial() {
         try {
-            List<HistorialPrecio> historial = HistorialPreciosDAO.obtenerTodoElHistorial();
-            todosLosRegistros = FXCollections.observableArrayList(historial);
+            List<HistorialPrecio> registros = HistorialPreciosDAO.obtenerTodoElHistorial();
+            todosLosRegistros = FXCollections.observableArrayList(registros);
             tablaHistorial.setItems(todosLosRegistros);
             
-            totalRegistrosLabel.setText("Total: " + historial.size() + " registros");
-            System.out.println("✅ Historial cargado: " + historial.size() + " registros");
+            totalRegistrosLabel.setText("Total: " + registros.size() + " cambios");
+            System.out.println("✅ Historial cargado: " + registros.size() + " registros");
             
         } catch (Exception e) {
             System.err.println("❌ Error al cargar historial: " + e.getMessage());
@@ -262,36 +272,39 @@ public class HistorialPreciosView extends VBox {
         }
     }
     
-    private void filtrarHistorial(String filtro) {
-        if (filtro == null || filtro.trim().isEmpty()) {
-            filtrarPorCategoria(); // Aplicar filtro de categoría si existe
+    private void filtrarHistorial() {
+        String textoBusqueda = searchField.getText();
+        String categoriaSeleccionada = cmbCategoria.getValue();
+        
+        // Si no hay filtros, mostrar todo
+        if ((textoBusqueda == null || textoBusqueda.trim().isEmpty()) && 
+            (categoriaSeleccionada == null || categoriaSeleccionada.equals("TODAS"))) {
+            tablaHistorial.setItems(todosLosRegistros);
+            totalRegistrosLabel.setText("Total: " + todosLosRegistros.size() + " cambios");
             return;
         }
         
-        String filtroLower = filtro.toLowerCase();
-        ObservableList<HistorialPrecio> filtrados = todosLosRegistros.filtered(registro ->
-            registro.getProductoCodigo().toLowerCase().contains(filtroLower) ||
-            registro.getProductoDescripcion().toLowerCase().contains(filtroLower)
-        );
+        // Aplicar filtros combinados
+        ObservableList<HistorialPrecio> filtrados = todosLosRegistros;
+        
+        // Filtro por categoría
+        if (categoriaSeleccionada != null && !categoriaSeleccionada.equals("TODAS")) {
+            final String catFinal = categoriaSeleccionada;
+            filtrados = filtrados.filtered(registro -> 
+                registro.getCategoria() != null && registro.getCategoria().equals(catFinal)
+            );
+        }
+        
+        // Filtro por texto
+        if (textoBusqueda != null && !textoBusqueda.trim().isEmpty()) {
+            String filtroLower = textoBusqueda.toLowerCase();
+            filtrados = filtrados.filtered(registro ->
+                registro.getProductoCodigo().toLowerCase().contains(filtroLower) ||
+                registro.getProductoDescripcion().toLowerCase().contains(filtroLower)
+            );
+        }
         
         tablaHistorial.setItems(filtrados);
-        totalRegistrosLabel.setText("Mostrando: " + filtrados.size() + " de " + todosLosRegistros.size() + " registros");
-    }
-    
-    private void filtrarPorCategoria() {
-        String categoria = cmbCategoria.getValue();
-        
-        if (categoria.equals("TODAS")) {
-            cargarHistorial();
-        } else {
-            try {
-                List<HistorialPrecio> historial = HistorialPreciosDAO.obtenerHistorialPorCategoria(categoria);
-                todosLosRegistros = FXCollections.observableArrayList(historial);
-                tablaHistorial.setItems(todosLosRegistros);
-                totalRegistrosLabel.setText("Total: " + historial.size() + " registros (" + categoria + ")");
-            } catch (Exception e) {
-                System.err.println("❌ Error al filtrar por categoría: " + e.getMessage());
-            }
-        }
+        totalRegistrosLabel.setText("Mostrando: " + filtrados.size() + " de " + todosLosRegistros.size() + " cambios");
     }
 }

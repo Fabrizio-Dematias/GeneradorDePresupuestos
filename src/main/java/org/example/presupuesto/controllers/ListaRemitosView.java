@@ -5,12 +5,14 @@ import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
+import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import org.example.presupuesto.dao.RemitoDAO;
+import org.example.presupuesto.utils.NavigationManager;
 
 import java.awt.Desktop;
 import java.io.File;
@@ -23,6 +25,7 @@ public class ListaRemitosView extends VBox {
     private TableView<RemitoDAO.RemitoResumen> tablaRemitos;
     private TextField searchField;
     private Label totalRemitosLabel;
+    private Label totalFacturacionLabel;
     private ObservableList<RemitoDAO.RemitoResumen> todosLosRemitos;
     
     private final Locale localeAR = new Locale("es", "AR");
@@ -35,9 +38,10 @@ public class ListaRemitosView extends VBox {
         
         HBox header = createHeader();
         VBox toolbar = createToolbar();
+        HBox stats = createStats();
         VBox tableContainer = createTable();
         
-        getChildren().addAll(header, toolbar, tableContainer);
+        getChildren().addAll(header, toolbar, stats, tableContainer);
         cargarRemitos();
     }
     
@@ -46,12 +50,12 @@ public class ListaRemitosView extends VBox {
         header.setAlignment(Pos.CENTER_LEFT);
         header.setSpacing(15);
         header.setPadding(new Insets(20));
-        header.setStyle("-fx-background-color: #8b5cf6; -fx-background-radius: 10;");
+        header.setStyle("-fx-background-color: #6d28d9; -fx-background-radius: 10;");
         
         // Botón Volver
         Button btnVolver = new Button("← Volver");
         btnVolver.setStyle(
-            "-fx-background-color: #6d28d9; " +
+            "-fx-background-color: #8b5cf6; " +
             "-fx-text-fill: white; " +
             "-fx-font-size: 14px; " +
             "-fx-font-weight: bold; " +
@@ -60,8 +64,8 @@ public class ListaRemitosView extends VBox {
             "-fx-background-radius: 5;"
         );
         btnVolver.setOnAction(e -> {
-            Stage stage = (Stage) this.getScene().getWindow();
-            stage.close();
+            DashboardView dashboard = new DashboardView();
+            NavigationManager.getInstance().navigateTo(dashboard);
         });
         
         // Hover effect
@@ -75,7 +79,7 @@ public class ListaRemitosView extends VBox {
             "-fx-background-radius: 5;"
         ));
         btnVolver.setOnMouseExited(e -> btnVolver.setStyle(
-            "-fx-background-color: #6d28d9; " +
+            "-fx-background-color: #8b5cf6; " +
             "-fx-text-fill: white; " +
             "-fx-font-size: 14px; " +
             "-fx-font-weight: bold; " +
@@ -103,27 +107,62 @@ public class ListaRemitosView extends VBox {
         
         // Campo de búsqueda
         searchField = new TextField();
-        searchField.setPromptText("🔍 Buscar por número o cliente...");
+        searchField.setPromptText("🔍 Buscar por número, cliente o CUIT...");
         searchField.setPrefWidth(350);
         searchField.setStyle("-fx-font-size: 14px; -fx-padding: 8;");
-        searchField.textProperty().addListener((obs, old, newValue) -> filtrarRemitos(newValue));
-        
-        // Label de total
-        totalRemitosLabel = new Label("Total: 0 remitos");
-        totalRemitosLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+        searchField.textProperty().addListener((obs, old, newValue) -> filtrarRemitos());
         
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         
-        // Botón refrescar
         Button btnRefrescar = new Button("🔄 Refrescar");
         btnRefrescar.setStyle("-fx-font-size: 13px; -fx-padding: 8 15;");
         btnRefrescar.setOnAction(e -> cargarRemitos());
         
-        toolbar.getChildren().addAll(searchField, totalRemitosLabel, spacer, btnRefrescar);
+        toolbar.getChildren().addAll(searchField, spacer, btnRefrescar);
         container.getChildren().add(toolbar);
         
         return container;
+    }
+    
+    private HBox createStats() {
+        HBox stats = new HBox(20);
+        stats.setAlignment(Pos.CENTER);
+        
+        VBox stat1 = createStatBox("📄", "Total Remitos", "0", "#8b5cf6");
+        totalRemitosLabel = (Label) ((VBox) stat1.getChildren().get(0)).getChildren().get(2);
+        
+        VBox stat2 = createStatBox("💰", "Facturación Total", "$0", "#10b981");
+        totalFacturacionLabel = (Label) ((VBox) stat2.getChildren().get(0)).getChildren().get(2);
+        
+        stats.getChildren().addAll(stat1, stat2);
+        return stats;
+    }
+    
+    private VBox createStatBox(String icon, String label, String value, String color) {
+        VBox box = new VBox(10);
+        box.setAlignment(Pos.CENTER);
+        box.setPadding(new Insets(20));
+        box.setStyle("-fx-background-color: white; -fx-background-radius: 10; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 2);");
+        box.setPrefWidth(300);
+        
+        VBox content = new VBox(10);
+        content.setAlignment(Pos.CENTER);
+        
+        Label iconLabel = new Label(icon);
+        iconLabel.setFont(Font.font(40));
+        
+        Label titleLabel = new Label(label);
+        titleLabel.setFont(Font.font("System", FontWeight.NORMAL, 12));
+        titleLabel.setTextFill(Color.web("#6b7280"));
+        
+        Label valueLabel = new Label(value);
+        valueLabel.setFont(Font.font("System", FontWeight.BOLD, 24));
+        valueLabel.setTextFill(Color.web(color));
+        
+        content.getChildren().addAll(iconLabel, titleLabel, valueLabel);
+        box.getChildren().add(content);
+        return box;
     }
     
     private VBox createTable() {
@@ -131,28 +170,34 @@ public class ListaRemitosView extends VBox {
         
         tablaRemitos = new TableView<>();
         tablaRemitos.setStyle("-fx-background-color: white; -fx-background-radius: 10;");
-        tablaRemitos.setPrefHeight(450);
+        tablaRemitos.setPrefHeight(400);
         
         // Columna Número
         TableColumn<RemitoDAO.RemitoResumen, String> colNumero = new TableColumn<>("Número");
-        colNumero.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getNumero()));
+        colNumero.setCellValueFactory(new PropertyValueFactory<>("numero"));
         colNumero.setPrefWidth(120);
         colNumero.setStyle("-fx-alignment: CENTER;");
         
-        // Columna Fecha
+        // Columna Fecha (String, ya formateada desde la BD)
         TableColumn<RemitoDAO.RemitoResumen, String> colFecha = new TableColumn<>("Fecha");
-        colFecha.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getFecha()));
+        colFecha.setCellValueFactory(new PropertyValueFactory<>("fecha"));
         colFecha.setPrefWidth(100);
         colFecha.setStyle("-fx-alignment: CENTER;");
         
         // Columna Cliente
         TableColumn<RemitoDAO.RemitoResumen, String> colCliente = new TableColumn<>("Cliente");
-        colCliente.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getClienteNombre()));
-        colCliente.setPrefWidth(300);
+        colCliente.setCellValueFactory(new PropertyValueFactory<>("clienteNombre"));
+        colCliente.setPrefWidth(250);
+        
+        // Columna CUIT
+        TableColumn<RemitoDAO.RemitoResumen, String> colCuit = new TableColumn<>("CUIT");
+        colCuit.setCellValueFactory(new PropertyValueFactory<>("clienteCUIT"));
+        colCuit.setPrefWidth(130);
+        colCuit.setStyle("-fx-alignment: CENTER;");
         
         // Columna Total
         TableColumn<RemitoDAO.RemitoResumen, Double> colTotal = new TableColumn<>("Total");
-        colTotal.setCellValueFactory(data -> new javafx.beans.property.SimpleObjectProperty<>(data.getValue().getTotal()));
+        colTotal.setCellValueFactory(new PropertyValueFactory<>("total"));
         colTotal.setPrefWidth(150);
         colTotal.setStyle("-fx-alignment: CENTER-RIGHT;");
         colTotal.setCellFactory(column -> new TableCell<>() {
@@ -168,26 +213,20 @@ public class ListaRemitosView extends VBox {
             }
         });
         
-        // Columna Estado
-        TableColumn<RemitoDAO.RemitoResumen, String> colEstado = new TableColumn<>("Estado");
-        colEstado.setCellValueFactory(data -> new javafx.beans.property.SimpleStringProperty(data.getValue().getEstado()));
-        colEstado.setPrefWidth(120);
-        colEstado.setStyle("-fx-alignment: CENTER;");
-        
         // Columna Acciones
         TableColumn<RemitoDAO.RemitoResumen, Void> colAcciones = new TableColumn<>("Acciones");
-        colAcciones.setPrefWidth(220);
+        colAcciones.setPrefWidth(200);
         colAcciones.setCellFactory(column -> new TableCell<>() {
-            private final Button btnAbrir = new Button("📄 Ver PDF");
+            private final Button btnVer = new Button("👁️ Ver");
             private final Button btnEliminar = new Button("🗑️");
             
             {
-                btnAbrir.setStyle("-fx-background-color: #3b82f6; -fx-text-fill: white; -fx-font-size: 11px; -fx-padding: 5 10;");
+                btnVer.setStyle("-fx-background-color: #3b82f6; -fx-text-fill: white; -fx-font-size: 11px; -fx-padding: 5 10;");
                 btnEliminar.setStyle("-fx-background-color: #ef4444; -fx-text-fill: white; -fx-font-size: 11px; -fx-padding: 5 10;");
                 
-                btnAbrir.setOnAction(e -> {
+                btnVer.setOnAction(e -> {
                     RemitoDAO.RemitoResumen remito = getTableView().getItems().get(getIndex());
-                    abrirPDF(remito);
+                    verPDF(remito);
                 });
                 
                 btnEliminar.setOnAction(e -> {
@@ -204,13 +243,13 @@ public class ListaRemitosView extends VBox {
                 } else {
                     HBox buttons = new HBox(8);
                     buttons.setAlignment(Pos.CENTER);
-                    buttons.getChildren().addAll(btnAbrir, btnEliminar);
+                    buttons.getChildren().addAll(btnVer, btnEliminar);
                     setGraphic(buttons);
                 }
             }
         });
         
-        tablaRemitos.getColumns().addAll(colNumero, colFecha, colCliente, colTotal, colEstado, colAcciones);
+        tablaRemitos.getColumns().addAll(colNumero, colFecha, colCliente, colCuit, colTotal, colAcciones);
         container.getChildren().add(tablaRemitos);
         
         return container;
@@ -222,7 +261,14 @@ public class ListaRemitosView extends VBox {
             todosLosRemitos = FXCollections.observableArrayList(remitos);
             tablaRemitos.setItems(todosLosRemitos);
             
-            totalRemitosLabel.setText("Total: " + remitos.size() + " remitos");
+            // Actualizar estadísticas
+            totalRemitosLabel.setText(String.valueOf(remitos.size()));
+            
+            double totalFacturacion = remitos.stream()
+                .mapToDouble(RemitoDAO.RemitoResumen::getTotal)
+                .sum();
+            totalFacturacionLabel.setText(currencyFormatter.format(totalFacturacion));
+            
             System.out.println("✅ Remitos cargados: " + remitos.size());
             
         } catch (Exception e) {
@@ -236,25 +282,25 @@ public class ListaRemitosView extends VBox {
         }
     }
     
-    private void filtrarRemitos(String filtro) {
-        if (filtro == null || filtro.trim().isEmpty()) {
+    private void filtrarRemitos() {
+        String textoBusqueda = searchField.getText();
+        
+        if (textoBusqueda == null || textoBusqueda.trim().isEmpty()) {
             tablaRemitos.setItems(todosLosRemitos);
-            totalRemitosLabel.setText("Total: " + todosLosRemitos.size() + " remitos");
             return;
         }
         
-        String filtroLower = filtro.toLowerCase();
+        String filtroLower = textoBusqueda.toLowerCase();
         ObservableList<RemitoDAO.RemitoResumen> filtrados = todosLosRemitos.filtered(remito ->
             remito.getNumero().toLowerCase().contains(filtroLower) ||
             remito.getClienteNombre().toLowerCase().contains(filtroLower) ||
-            (remito.getClienteCUIT() != null && remito.getClienteCUIT().toLowerCase().contains(filtroLower))
+            remito.getClienteCUIT().toLowerCase().contains(filtroLower)
         );
         
         tablaRemitos.setItems(filtrados);
-        totalRemitosLabel.setText("Mostrando: " + filtrados.size() + " de " + todosLosRemitos.size() + " remitos");
     }
     
-    private void abrirPDF(RemitoDAO.RemitoResumen remito) {
+    private void verPDF(RemitoDAO.RemitoResumen remito) {
         try {
             String rutaPDF = remito.getRutaPDF();
             
@@ -270,8 +316,8 @@ public class ListaRemitosView extends VBox {
             
             if (!pdfFile.exists()) {
                 Alert alert = new Alert(Alert.AlertType.WARNING);
-                alert.setTitle("Archivo no encontrado");
-                alert.setContentText("El archivo PDF no existe en:\n" + rutaPDF);
+                alert.setTitle("PDF no encontrado");
+                alert.setContentText("El archivo PDF no existe en la ruta: " + rutaPDF);
                 alert.showAndWait();
                 return;
             }
@@ -281,9 +327,9 @@ public class ListaRemitosView extends VBox {
                 Desktop.getDesktop().open(pdfFile);
                 System.out.println("✅ PDF abierto: " + rutaPDF);
             } else {
-                Alert alert = new Alert(Alert.AlertType.ERROR);
-                alert.setTitle("Error");
-                alert.setContentText("No se puede abrir el PDF automáticamente en este sistema.");
+                Alert alert = new Alert(Alert.AlertType.WARNING);
+                alert.setTitle("No se puede abrir");
+                alert.setContentText("No se puede abrir el PDF automáticamente.\nRuta: " + rutaPDF);
                 alert.showAndWait();
             }
             
@@ -292,8 +338,8 @@ public class ListaRemitosView extends VBox {
             e.printStackTrace();
             
             Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Error al abrir PDF");
-            alert.setContentText("No se pudo abrir el archivo PDF:\n" + e.getMessage());
+            alert.setTitle("Error");
+            alert.setContentText("No se pudo abrir el PDF: " + e.getMessage());
             alert.showAndWait();
         }
     }
@@ -313,10 +359,24 @@ public class ListaRemitosView extends VBox {
                 boolean eliminado = RemitoDAO.eliminarRemito(remito.getId());
                 
                 if (eliminado) {
+                    // Eliminar también el archivo PDF
+                    try {
+                        if (remito.getRutaPDF() != null && !remito.getRutaPDF().isEmpty()) {
+                            File pdfFile = new File(remito.getRutaPDF());
+                            if (pdfFile.exists()) {
+                                pdfFile.delete();
+                                System.out.println("✅ PDF eliminado: " + remito.getRutaPDF());
+                            }
+                        }
+                    } catch (Exception e) {
+                        System.err.println("⚠️ No se pudo eliminar el PDF: " + e.getMessage());
+                    }
+                    
                     Alert success = new Alert(Alert.AlertType.INFORMATION);
                     success.setTitle("Remito eliminado");
                     success.setContentText("El remito se eliminó correctamente.");
                     success.showAndWait();
+                    
                     cargarRemitos();
                 } else {
                     Alert error = new Alert(Alert.AlertType.ERROR);
