@@ -28,7 +28,8 @@ public class ProductoDAO {
                     rs.getInt("id"),
                     rs.getString("codigo"),
                     rs.getString("descripcion"),
-                    rs.getDouble("precio_unitario")
+                    rs.getDouble("precio_unitario"),
+                    rs.getString("categoria")
                 );
                 productos.add(producto);
             }
@@ -58,7 +59,8 @@ public class ProductoDAO {
                     rs.getInt("id"),
                     rs.getString("codigo"),
                     rs.getString("descripcion"),
-                    rs.getDouble("precio_unitario")
+                    rs.getDouble("precio_unitario"),
+                    rs.getString("categoria")
                 );
             }
             
@@ -90,7 +92,8 @@ public class ProductoDAO {
                     rs.getInt("id"),
                     rs.getString("codigo"),
                     rs.getString("descripcion"),
-                    rs.getDouble("precio_unitario")
+                    rs.getDouble("precio_unitario"),
+                    rs.getString("categoria")
                 );
                 productos.add(producto);
             }
@@ -106,7 +109,14 @@ public class ProductoDAO {
      * Agrega un nuevo producto
      */
     public static boolean agregarProducto(String codigo, String descripcion, double precioUnitario) {
-        String query = "INSERT INTO productos (codigo, descripcion, precio_unitario) VALUES (?, ?, ?)";
+        return agregarProducto(codigo, descripcion, precioUnitario, "CARBONES");
+    }
+    
+    /**
+     * Agrega un nuevo producto con categoría
+     */
+    public static boolean agregarProducto(String codigo, String descripcion, double precioUnitario, String categoria) {
+        String query = "INSERT INTO productos (codigo, descripcion, precio_unitario, categoria) VALUES (?, ?, ?, ?)";
         
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(query)) {
@@ -114,6 +124,7 @@ public class ProductoDAO {
             pstmt.setString(1, codigo);
             pstmt.setString(2, descripcion);
             pstmt.setDouble(3, precioUnitario);
+            pstmt.setString(4, categoria);
             
             int affectedRows = pstmt.executeUpdate();
             

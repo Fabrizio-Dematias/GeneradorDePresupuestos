@@ -22,6 +22,7 @@ public class ProductosView extends VBox {
     
     private TableView<Producto> tablaProductos;
     private TextField searchField;
+    private ComboBox<String> cmbCategoria;
     private Label totalProductosLabel;
     private ObservableList<Producto> todosLosProductos;
     
@@ -98,24 +99,41 @@ public class ProductosView extends VBox {
     private VBox createToolbar() {
         VBox container = new VBox(10);
         
-        HBox toolbar = new HBox(15);
-        toolbar.setAlignment(Pos.CENTER_LEFT);
+        // Primera fila: Búsqueda y filtros
+        HBox toolbarTop = new HBox(15);
+        toolbarTop.setAlignment(Pos.CENTER_LEFT);
         
         // Campo de búsqueda
         searchField = new TextField();
         searchField.setPromptText("🔍 Buscar por código o descripción...");
-        searchField.setPrefWidth(350);
+        searchField.setPrefWidth(300);
         searchField.setStyle("-fx-font-size: 14px; -fx-padding: 8;");
-        searchField.textProperty().addListener((obs, old, newValue) -> filtrarProductos(newValue));
+        searchField.textProperty().addListener((obs, old, newValue) -> filtrarProductos());
+        
+        // Filtro por categoría
+        Label lblCategoria = new Label("Categoría:");
+        lblCategoria.setStyle("-fx-font-weight: bold; -fx-font-size: 13px;");
+        
+        cmbCategoria = new ComboBox<>();
+        cmbCategoria.getItems().addAll("TODAS", "CARBONES", "INTERRUPTORES", "REPUESTOS VARIOS");
+        cmbCategoria.setValue("TODAS");
+        cmbCategoria.setPrefWidth(180);
+        cmbCategoria.setStyle("-fx-font-size: 13px;");
+        cmbCategoria.setOnAction(e -> filtrarProductos());
         
         // Label de total
         totalProductosLabel = new Label("Total: 0 productos");
-        totalProductosLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+        totalProductosLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #1f2937;");
         
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         
-        // Botones
+        toolbarTop.getChildren().addAll(searchField, lblCategoria, cmbCategoria, totalProductosLabel, spacer);
+        
+        // Segunda fila: Botones de acción
+        HBox toolbarBottom = new HBox(10);
+        toolbarBottom.setAlignment(Pos.CENTER_RIGHT);
+        
         Button btnNuevo = new Button("➕ Nuevo Producto");
         btnNuevo.setStyle("-fx-background-color: #10b981; -fx-text-fill: white; -fx-font-size: 13px; -fx-padding: 8 15; -fx-cursor: hand;");
         btnNuevo.setOnAction(e -> abrirFormularioNuevo());
@@ -128,9 +146,9 @@ public class ProductosView extends VBox {
         btnRefrescar.setStyle("-fx-font-size: 13px; -fx-padding: 8 15;");
         btnRefrescar.setOnAction(e -> cargarProductos());
         
-        toolbar.getChildren().addAll(searchField, totalProductosLabel, spacer, btnNuevo, btnActualizarPrecios, btnRefrescar);
-        container.getChildren().add(toolbar);
+        toolbarBottom.getChildren().addAll(btnNuevo, btnActualizarPrecios, btnRefrescar);
         
+        container.getChildren().addAll(toolbarTop, toolbarBottom);
         return container;
     }
     
@@ -150,7 +168,13 @@ public class ProductosView extends VBox {
         // Columna Descripción
         TableColumn<Producto, String> colDescripcion = new TableColumn<>("Descripción");
         colDescripcion.setCellValueFactory(new PropertyValueFactory<>("descripcion"));
-        colDescripcion.setPrefWidth(550);
+        colDescripcion.setPrefWidth(400);
+        
+        // Columna Categoría
+        TableColumn<Producto, String> colCategoria = new TableColumn<>("Categoría");
+        colCategoria.setCellValueFactory(new PropertyValueFactory<>("categoria"));
+        colCategoria.setPrefWidth(150);
+        colCategoria.setStyle("-fx-alignment: CENTER;");
         
         // Columna Precio
         TableColumn<Producto, Double> colPrecio = new TableColumn<>("Precio Unitario");
@@ -206,7 +230,7 @@ public class ProductosView extends VBox {
             }
         });
         
-        tablaProductos.getColumns().addAll(colCodigo, colDescripcion, colPrecio, colAcciones);
+        tablaProductos.getColumns().addAll(colCodigo, colDescripcion, colCategoria, colPrecio, colAcciones);
         container.getChildren().add(tablaProductos);
         
         return container;
@@ -232,18 +256,37 @@ public class ProductosView extends VBox {
         }
     }
     
-    private void filtrarProductos(String filtro) {
-        if (filtro == null || filtro.trim().isEmpty()) {
+    private void filtrarProductos() {
+        String textoBusqueda = searchField.getText();
+        String categoriaSeleccionada = cmbCategoria.getValue();
+        
+        // Si no hay filtros, mostrar todo
+        if ((textoBusqueda == null || textoBusqueda.trim().isEmpty()) && 
+            (categoriaSeleccionada == null || categoriaSeleccionada.equals("TODAS"))) {
             tablaProductos.setItems(todosLosProductos);
             totalProductosLabel.setText("Total: " + todosLosProductos.size() + " productos");
             return;
         }
         
-        String filtroLower = filtro.toLowerCase();
-        ObservableList<Producto> filtrados = todosLosProductos.filtered(producto ->
-            producto.getCodigo().toLowerCase().contains(filtroLower) ||
-            producto.getDescripcion().toLowerCase().contains(filtroLower)
-        );
+        // Aplicar filtros combinados
+        ObservableList<Producto> filtrados = todosLosProductos;
+        
+        // Filtro por categoría
+        if (categoriaSeleccionada != null && !categoriaSeleccionada.equals("TODAS")) {
+            final String catFinal = categoriaSeleccionada;
+            filtrados = filtrados.filtered(producto -> 
+                producto.getCategoria() != null && producto.getCategoria().equals(catFinal)
+            );
+        }
+        
+        // Filtro por texto
+        if (textoBusqueda != null && !textoBusqueda.trim().isEmpty()) {
+            String filtroLower = textoBusqueda.toLowerCase();
+            filtrados = filtrados.filtered(producto ->
+                producto.getCodigo().toLowerCase().contains(filtroLower) ||
+                producto.getDescripcion().toLowerCase().contains(filtroLower)
+            );
+        }
         
         tablaProductos.setItems(filtrados);
         totalProductosLabel.setText("Mostrando: " + filtrados.size() + " de " + todosLosProductos.size() + " productos");
@@ -274,11 +317,16 @@ public class ProductosView extends VBox {
         TextField txtPrecio = new TextField();
         txtPrecio.setPromptText("Ej: 1500.50");
         
+        ComboBox<String> cmbCategoriaForm = new ComboBox<>();
+        cmbCategoriaForm.getItems().addAll("CARBONES", "INTERRUPTORES", "REPUESTOS VARIOS");
+        cmbCategoriaForm.setValue("CARBONES");
+        
         if (producto != null) {
             txtCodigo.setText(producto.getCodigo());
             txtCodigo.setEditable(false); // No permitir cambiar el código
             txtDescripcion.setText(producto.getDescripcion());
             txtPrecio.setText(String.valueOf(producto.getPrecioUnitario()));
+            cmbCategoriaForm.setValue(producto.getCategoria());
         }
         
         grid.add(new Label("Código:"), 0, 0);
@@ -287,6 +335,8 @@ public class ProductosView extends VBox {
         grid.add(txtDescripcion, 1, 1);
         grid.add(new Label("Precio Unitario:"), 0, 2);
         grid.add(txtPrecio, 1, 2);
+        grid.add(new Label("Categoría:"), 0, 3);
+        grid.add(cmbCategoriaForm, 1, 3);
         
         dialog.getDialogPane().setContent(grid);
         dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
@@ -297,6 +347,7 @@ public class ProductosView extends VBox {
                     String codigo = txtCodigo.getText().trim();
                     String descripcion = txtDescripcion.getText().trim();
                     double precio = Double.parseDouble(txtPrecio.getText().trim());
+                    String categoria = cmbCategoriaForm.getValue();
                     
                     if (codigo.isEmpty() || descripcion.isEmpty()) {
                         throw new IllegalArgumentException("Código y descripción son obligatorios");
@@ -304,7 +355,7 @@ public class ProductosView extends VBox {
                     
                     boolean exito;
                     if (producto == null) {
-                        exito = ProductoDAO.agregarProducto(codigo, descripcion, precio);
+                        exito = ProductoDAO.agregarProducto(codigo, descripcion, precio, categoria);
                     } else {
                         exito = ProductoDAO.actualizarProducto(codigo, descripcion, precio);
                     }
@@ -376,18 +427,18 @@ public class ProductosView extends VBox {
         
         // Selector de categoría
         Label lblCategoria = new Label("Aplicar a:");
-        ComboBox<String> cmbCategoria = new ComboBox<>();
-        cmbCategoria.getItems().addAll("TODOS", "CARBONES", "INTERRUPTORES");
-        cmbCategoria.setValue("TODOS");
-        cmbCategoria.setPrefWidth(200);
+        ComboBox<String> cmbCategoriaDialog = new ComboBox<>();
+        cmbCategoriaDialog.getItems().addAll("TODOS", "CARBONES", "INTERRUPTORES", "REPUESTOS VARIOS");
+        cmbCategoriaDialog.setValue("TODOS");
+        cmbCategoriaDialog.setPrefWidth(200);
         
         // Label con cantidad de productos
         Label lblCantidad = new Label("");
         lblCantidad.setStyle("-fx-text-fill: #6b7280; -fx-font-size: 12px;");
         
         // Actualizar cantidad cuando cambia la categoría
-        cmbCategoria.setOnAction(e -> {
-            String cat = cmbCategoria.getValue();
+        cmbCategoriaDialog.setOnAction(e -> {
+            String cat = cmbCategoriaDialog.getValue();
             int cantidad = ProductoDAO.contarProductosPorCategoria(cat);
             lblCantidad.setText("(" + cantidad + " productos)");
         });
@@ -410,7 +461,7 @@ public class ProductosView extends VBox {
         btnVistaPrevia.setOnAction(e -> {
             try {
                 double porcentaje = Double.parseDouble(txtPorcentaje.getText().trim());
-                String categoria = cmbCategoria.getValue();
+                String categoria = cmbCategoriaDialog.getValue();
                 
                 List<String> previews = ProductoDAO.obtenerVistaPreviaCambios(categoria, porcentaje, 5);
                 txtVistaPrevia.setText(String.join("\n", previews));
@@ -423,7 +474,7 @@ public class ProductosView extends VBox {
         grid.add(lblPorcentaje, 0, 0);
         grid.add(txtPorcentaje, 1, 0);
         grid.add(lblCategoria, 0, 1);
-        grid.add(cmbCategoria, 1, 1);
+        grid.add(cmbCategoriaDialog, 1, 1);
         grid.add(lblCantidad, 2, 1);
         grid.add(btnVistaPrevia, 1, 2);
         grid.add(lblVistaPrevia, 0, 3);
@@ -436,7 +487,7 @@ public class ProductosView extends VBox {
             if (response == ButtonType.OK) {
                 try {
                     double porcentaje = Double.parseDouble(txtPorcentaje.getText().trim());
-                    String categoria = cmbCategoria.getValue();
+                    String categoria = cmbCategoriaDialog.getValue();
                     
                     // Confirmación final
                     Alert confirmacion = new Alert(Alert.AlertType.CONFIRMATION);
