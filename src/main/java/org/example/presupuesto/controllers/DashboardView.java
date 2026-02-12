@@ -177,10 +177,35 @@ public class DashboardView extends VBox {
         module4.setOnMouseClicked(e -> verHistorialPrecios());
         module4.setCursor(javafx.scene.Cursor.HAND);
 
+        // Módulo 5: Productos Más Vendidos
+        VBox module5 = createModuleBox(
+            "📊",
+            "Productos Más Vendidos",
+            "Estadísticas y reportes",
+            "#059669"
+        );
+
+        module5.setOnMouseClicked(e -> verProductosMasVendidos());
+        module5.setCursor(javafx.scene.Cursor.HAND);
+
+        // Módulo 6: Facturación Mensual (NUEVO)
+        VBox module6 = createModuleBox(
+            "💰",
+            "Facturación Mensual",
+            "Evolución y tendencias",
+            "#f59e0b"
+        );
+
+        module6.setOnMouseClicked(e -> verFacturacionMensual());
+        module6.setCursor(javafx.scene.Cursor.HAND);
+
+        // Distribución en grid 3x2
         modules.add(module1, 0, 0);
         modules.add(module2, 1, 0);
-        modules.add(module3, 0, 1);
-        modules.add(module4, 1, 1);
+        modules.add(module3, 2, 0);
+        modules.add(module4, 0, 1);
+        modules.add(module5, 1, 1);
+        modules.add(module6, 2, 1);
 
         return modules;
     }
@@ -222,14 +247,14 @@ public class DashboardView extends VBox {
         titleLabel.setTextFill(Color.BLACK);
         titleLabel.setVisible(true);
         titleLabel.setManaged(true);
-        titleLabel.setStyle("-fx-text-fill: black;"); // Forzar color en CSS también
+        titleLabel.setStyle("-fx-text-fill: black;");
 
         Label descLabel = new Label(description);
         descLabel.setFont(Font.font("System", 12));
         descLabel.setTextFill(Color.web("#374151"));
         descLabel.setVisible(true);
         descLabel.setManaged(true);
-        descLabel.setStyle("-fx-text-fill: #374151;"); // Forzar color en CSS también
+        descLabel.setStyle("-fx-text-fill: #374151;");
 
         VBox content = new VBox(10);
         content.setAlignment(Pos.CENTER);
@@ -326,6 +351,26 @@ public class DashboardView extends VBox {
         Scene scene = new Scene(historialView, 1200, 700);
         Stage stage = new Stage();
         stage.setTitle("Historial de Cambios de Precios - DICOR");
+        stage.setScene(scene);
+        stage.setOnHidden(event -> cargarEstadisticas());
+        stage.show();
+    }
+
+    private void verProductosMasVendidos() {
+        ProductosMasVendidosView reportesView = new ProductosMasVendidosView();
+        Scene scene = new Scene(reportesView, 1400, 800);
+        Stage stage = new Stage();
+        stage.setTitle("Productos Más Vendidos - DICOR");
+        stage.setScene(scene);
+        stage.setOnHidden(event -> cargarEstadisticas());
+        stage.show();
+    }
+
+    private void verFacturacionMensual() {
+        FacturacionMensualView facturacionView = new FacturacionMensualView();
+        Scene scene = new Scene(facturacionView, 1400, 800);
+        Stage stage = new Stage();
+        stage.setTitle("Facturación Mensual - DICOR");
         stage.setScene(scene);
         stage.setOnHidden(event -> cargarEstadisticas());
         stage.show();
