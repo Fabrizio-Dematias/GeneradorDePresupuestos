@@ -3,7 +3,6 @@ package org.example.presupuesto;
 import javafx.application.Application;
 import javafx.stage.Stage;
 import org.example.presupuesto.controllers.DashboardView;
-import org.example.presupuesto.dao.DatabaseManager;
 import org.example.presupuesto.utils.NavigationManager;
 
 import java.io.IOException;
@@ -12,8 +11,6 @@ public class HelloApplication extends Application {
     
     @Override
     public void start(Stage stage) throws IOException {
-
-        
         // Inicializar el gestor de navegación
         NavigationManager navigationManager = NavigationManager.getInstance();
         navigationManager.initialize(stage);

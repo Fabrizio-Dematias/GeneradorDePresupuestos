@@ -308,23 +308,8 @@ public class DashboardView extends VBox {
     }
 
     private void abrirNuevoRemito() {
-        try {
-            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
-                getClass().getResource("/org/example/presupuesto/views/remito-form.fxml")
-            );
-            javafx.scene.Parent root = loader.load();
-
-            Scene scene = new Scene(root, 1000, 700);
-            Stage stage = new Stage();
-            stage.setTitle("Nuevo Remito - DICOR");
-            stage.setScene(scene);
-            stage.setOnHidden(event -> cargarEstadisticas());
-            stage.show();
-
-        } catch (Exception e) {
-            System.err.println("❌ Error al abrir formulario de remito: " + e.getMessage());
-            e.printStackTrace();
-        }
+        NuevoRemitoView nuevoRemito = new NuevoRemitoView();
+        NavigationManager.getInstance().navigateTo(nuevoRemito);
     }
 
     private void verListaRemitos() {

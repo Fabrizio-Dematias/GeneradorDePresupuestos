@@ -522,46 +522,54 @@ public class RemitoController {
             if (root instanceof javafx.scene.layout.VBox) {
                 javafx.scene.layout.VBox vbox = (javafx.scene.layout.VBox) root;
                 
-                // Crear botón
-                Button btnVolver = new Button("← Volver al Dashboard");
+                // Crear botón con el mismo estilo que las otras vistas (VERDE)
+                Button btnVolver = new Button("← Volver");
                 btnVolver.setStyle(
-                    "-fx-background-color: #3b82f6; " +
+                    "-fx-background-color: #10b981; " +
                     "-fx-text-fill: white; " +
-                    "-fx-font-size: 13px; " +
+                    "-fx-font-size: 14px; " +
                     "-fx-font-weight: bold; " +
-                    "-fx-padding: 8 15; " +
+                    "-fx-padding: 10 20; " +
                     "-fx-cursor: hand; " +
                     "-fx-background-radius: 5;"
                 );
                 
+                // Hover effect (verde más oscuro)
                 btnVolver.setOnMouseEntered(e -> btnVolver.setStyle(
-                    "-fx-background-color: #2563eb; " +
+                    "-fx-background-color: #059669; " +
                     "-fx-text-fill: white; " +
-                    "-fx-font-size: 13px; " +
+                    "-fx-font-size: 14px; " +
                     "-fx-font-weight: bold; " +
-                    "-fx-padding: 8 15; " +
+                    "-fx-padding: 10 20; " +
                     "-fx-cursor: hand; " +
                     "-fx-background-radius: 5;"
                 ));
                 
                 btnVolver.setOnMouseExited(e -> btnVolver.setStyle(
-                    "-fx-background-color: #3b82f6; " +
+                    "-fx-background-color: #10b981; " +
                     "-fx-text-fill: white; " +
-                    "-fx-font-size: 13px; " +
+                    "-fx-font-size: 14px; " +
                     "-fx-font-weight: bold; " +
-                    "-fx-padding: 8 15; " +
+                    "-fx-padding: 10 20; " +
                     "-fx-cursor: hand; " +
                     "-fx-background-radius: 5;"
                 ));
                 
+                // Acción: OCULTAR ventana (no cerrar) para no afectar pantalla completa
                 btnVolver.setOnAction(e -> {
                     Stage stage = (Stage) btnVolver.getScene().getWindow();
-                    stage.close();
+                    stage.hide(); // Ocultar en vez de cerrar
+                    System.out.println("✅ Ventana de remito ocultada");
                 });
                 
-                // Agregar al inicio
-                vbox.getChildren().add(0, btnVolver);
-                javafx.scene.layout.VBox.setMargin(btnVolver, new Insets(10, 10, 5, 10));
+                // Crear una barra superior con fondo
+                javafx.scene.layout.HBox topBar = new javafx.scene.layout.HBox(btnVolver);
+                topBar.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+                topBar.setPadding(new Insets(15, 15, 15, 15));
+                topBar.setStyle("-fx-background-color: #f3f4f6; -fx-border-color: #e5e7eb; -fx-border-width: 0 0 1 0;");
+                
+                // Agregar la barra al inicio
+                vbox.getChildren().add(0, topBar);
                 
                 System.out.println("✅ Botón Volver agregado a Crear Remito");
             }
