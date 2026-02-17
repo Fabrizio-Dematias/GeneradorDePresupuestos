@@ -266,10 +266,7 @@ public class ProductosMasVendidosView extends VBox {
             System.err.println("❌ Error al cargar datos: " + e.getMessage());
             e.printStackTrace();
             
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Error");
-            alert.setContentText("No se pudieron cargar las estadísticas: " + e.getMessage());
-            alert.showAndWait();
+            mostrarAlerta(Alert.AlertType.ERROR, "Error", "No se pudieron cargar los datos.");
         }
     }
     
@@ -314,5 +311,22 @@ public class ProductosMasVendidosView extends VBox {
             }
             index++;
         }
+    }
+    private void mostrarAlerta(Alert.AlertType tipo, String titulo, String contenido) {
+        Alert alert = new Alert(tipo);
+        alert.setTitle(titulo);
+        alert.setHeaderText(null);
+        alert.setContentText(contenido);
+        
+        try {
+            Stage owner = NavigationManager.getInstance().getPrimaryStage();
+            if (owner != null) {
+                alert.initOwner(owner);
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ No se pudo vincular Alert al Stage principal");
+        }
+        
+        alert.showAndWait();
     }
 }

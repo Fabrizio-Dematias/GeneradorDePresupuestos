@@ -55,7 +55,6 @@ public class NuevoRemitoView extends VBox {
     private TextField clienteCUIT;
     private Label lblEstadoCodigo;
     
-    // NUEVAS VARIABLES PARA LOS RADIOBUTTONS
     private ToggleGroup groupIVA;
     private ToggleGroup groupVenta;
     
@@ -138,19 +137,10 @@ public class NuevoRemitoView extends VBox {
         VBox form = new VBox(20);
         form.setPadding(new Insets(20));
         
-        // Datos del remito
         VBox datosRemito = createDatosRemito();
-        
-        // Datos del cliente
         VBox datosCliente = createDatosCliente();
-        
-        // Agregar producto
         VBox agregarProducto = createAgregarProducto();
-        
-        // Tabla de productos
         VBox tablaContainer = createTablaProductos();
-        
-        // Total y acciones
         HBox totalYAcciones = createTotalYAcciones();
         
         form.getChildren().addAll(datosRemito, datosCliente, agregarProducto, tablaContainer, totalYAcciones);
@@ -171,7 +161,6 @@ public class NuevoRemitoView extends VBox {
         grid.setVgap(10);
         grid.setPadding(new Insets(10, 0, 0, 0));
         
-        // Número de remito
         Label lblNumero = new Label("N° Remito:");
         lblNumero.setStyle("-fx-font-weight: bold; -fx-text-fill: black;");
         remitoNumero = new TextField();
@@ -179,7 +168,6 @@ public class NuevoRemitoView extends VBox {
         remitoNumero.setPrefWidth(150);
         remitoNumero.setStyle("-fx-background-color: #f3f4f6;");
         
-        // Fecha
         Label lblFecha = new Label("Fecha:");
         lblFecha.setStyle("-fx-font-weight: bold; -fx-text-fill: black;");
         fecha = new DatePicker(LocalDate.now());
@@ -207,32 +195,28 @@ public class NuevoRemitoView extends VBox {
         grid.setVgap(15);
         grid.setPadding(new Insets(10, 0, 0, 0));
         
-        // Nombre
         Label lblNombre = new Label("Nombre / Razón Social:");
         lblNombre.setStyle("-fx-font-weight: bold; -fx-text-fill: black;");
         clienteNombre = new TextField();
         clienteNombre.setPrefWidth(400);
         clienteNombre.setPromptText("Ingrese nombre del cliente");
         
-        // Domicilio
         Label lblDomicilio = new Label("Domicilio:");
         lblDomicilio.setStyle("-fx-font-weight: bold; -fx-text-fill: black;");
         clienteDomicilio = new TextField();
         clienteDomicilio.setPrefWidth(400);
         clienteDomicilio.setPromptText("Ingrese domicilio");
         
-        // CUIT
         Label lblCUIT = new Label("CUIT:");
         lblCUIT.setStyle("-fx-font-weight: bold; -fx-text-fill: black;");
         clienteCUIT = new TextField();
         clienteCUIT.setPrefWidth(200);
         clienteCUIT.setPromptText("20-12345678-9");
         
-        // Condición de IVA
         Label lblIVA = new Label("Condición IVA:");
         lblIVA.setStyle("-fx-font-weight: bold; -fx-font-size: 13px; -fx-text-fill: black;");
         
-        groupIVA = new ToggleGroup();  // SIN ToggleGroup al inicio
+        groupIVA = new ToggleGroup();
         
         RadioButton rbConsumidorFinal = new RadioButton("Consumidor Final");
         rbConsumidorFinal.setToggleGroup(groupIVA);
@@ -258,11 +242,10 @@ public class NuevoRemitoView extends VBox {
         HBox ivaBox = new HBox(10, rbConsumidorFinal, rbExento, rbRespInscripto, rbMonotributo);
         ivaBox.setAlignment(Pos.CENTER_LEFT);
         
-        // Condiciones de Venta
         Label lblCondiciones = new Label("Condiciones de Venta:");
         lblCondiciones.setStyle("-fx-font-weight: bold; -fx-font-size: 13px; -fx-text-fill: black;");
         
-        groupVenta = new ToggleGroup();  // SIN ToggleGroup al inicio
+        groupVenta = new ToggleGroup();
         
         RadioButton rbContado = new RadioButton("Contado");
         rbContado.setToggleGroup(groupVenta);
@@ -278,7 +261,6 @@ public class NuevoRemitoView extends VBox {
         HBox ventaBox = new HBox(10, rbContado, rbCuentaCorriente);
         ventaBox.setAlignment(Pos.CENTER_LEFT);
         
-        // Agregar al grid
         grid.add(lblNombre, 0, 0);
         grid.add(clienteNombre, 1, 0, 3, 1);
         
@@ -311,7 +293,6 @@ public class NuevoRemitoView extends VBox {
         grid.setVgap(12);
         grid.setPadding(new Insets(10, 0, 0, 0));
         
-        // Código
         Label lblCodigo = new Label("Código:");
         lblCodigo.setStyle("-fx-font-weight: bold; -fx-text-fill: black;");
         inputCodigo = new TextField();
@@ -325,34 +306,29 @@ public class NuevoRemitoView extends VBox {
         lblEstadoCodigo = new Label("");
         lblEstadoCodigo.setPrefWidth(150);
         
-        // Descripción
         Label lblDescripcion = new Label("Descripción:");
         lblDescripcion.setStyle("-fx-font-weight: bold; -fx-text-fill: black;");
         inputDescripcion = new TextField();
         inputDescripcion.setPrefWidth(400);
         inputDescripcion.setPromptText("Se autocompleta al ingresar código");
         
-        // Cantidad
         Label lblCantidad = new Label("Cantidad:");
         lblCantidad.setStyle("-fx-font-weight: bold; -fx-text-fill: black;");
         inputCantidad = new TextField();
         inputCantidad.setPromptText("Ej: 2");
         inputCantidad.setPrefWidth(100);
         
-        // Precio Unitario
         Label lblPrecio = new Label("Precio Unitario:");
         lblPrecio.setStyle("-fx-font-weight: bold; -fx-text-fill: black;");
         inputPrecioUnitario = new TextField();
         inputPrecioUnitario.setPromptText("Se autocompleta");
         inputPrecioUnitario.setPrefWidth(150);
         
-        // Bonificación
         Label lblBonif = new Label("Bonificación (%):");
         lblBonif.setStyle("-fx-font-weight: bold; -fx-text-fill: black;");
         inputBonificacion = new TextField("0");
         inputBonificacion.setPrefWidth(100);
         
-        // Agregar al grid
         grid.add(lblCodigo, 0, 0);
         grid.add(inputCodigo, 1, 0);
         grid.add(lblEstadoCodigo, 2, 0, 2, 1);
@@ -369,7 +345,6 @@ public class NuevoRemitoView extends VBox {
         grid.add(lblBonif, 0, 3);
         grid.add(inputBonificacion, 1, 3);
         
-        // Botones
         Button btnAgregar = new Button("✓ Agregar Producto");
         btnAgregar.setStyle(
             "-fx-background-color: #10b981; " +
@@ -577,11 +552,7 @@ public class NuevoRemitoView extends VBox {
             recalcularTotal();
             
         } catch (NumberFormatException e) {
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Error");
-            alert.setHeaderText("Campos inválidos");
-            alert.setContentText("Verificá que los campos numéricos estén bien escritos.");
-            alert.showAndWait();
+            mostrarAlerta(Alert.AlertType.ERROR, "Error", "Verificá que los campos numéricos estén bien escritos.");
         }
     }
     
@@ -604,21 +575,13 @@ public class NuevoRemitoView extends VBox {
     
     private void exportarComoPDF() {
         try {
-            // Validar que haya productos
             if (tablaProductos.getItems().isEmpty()) {
-                Alert alert = new Alert(Alert.AlertType.WARNING);
-                alert.setTitle("Sin productos");
-                alert.setContentText("Debés agregar al menos un producto al remito.");
-                alert.showAndWait();
+                mostrarAlerta(Alert.AlertType.WARNING, "Sin productos", "Debés agregar al menos un producto al remito.");
                 return;
             }
             
-            // Validar datos del cliente
             if (clienteNombre.getText().trim().isEmpty()) {
-                Alert alert = new Alert(Alert.AlertType.WARNING);
-                alert.setTitle("Datos incompletos");
-                alert.setContentText("Debés completar el nombre del cliente.");
-                alert.showAndWait();
+                mostrarAlerta(Alert.AlertType.WARNING, "Datos incompletos", "Debés completar el nombre del cliente.");
                 return;
             }
             
@@ -630,27 +593,23 @@ public class NuevoRemitoView extends VBox {
             String nro = remitoNumero.getText().trim();
             fileChooser.setInitialFileName("remito_" + cliente + "_" + nro + ".pdf");
             
-            File file = fileChooser.showSaveDialog(null);
+            File file = fileChooser.showSaveDialog(NavigationManager.getInstance().getPrimaryStage());
             
             if (file != null) {
                 Document document = new Document(PageSize.A4);
                 PdfWriter.getInstance(document, new FileOutputStream(file));
                 document.open();
                 
-                // Fuentes
                 com.lowagie.text.Font fontNormal = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA, 10);
                 com.lowagie.text.Font fontBold = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 10);
                 com.lowagie.text.Font fontRed = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 10, new java.awt.Color(255, 0, 0));
                 
-                // Cabecera
                 PdfPTable headerTable = new PdfPTable(2);
                 headerTable.setWidths(new float[]{2.5f, 2});
                 headerTable.setWidthPercentage(100);
                 
-                // Logo y datos del negocio
                 PdfPTable datosNegocio = new PdfPTable(1);
                 
-                // Cargar logo
                 try {
                     InputStream logoStream = getClass().getResourceAsStream("/logo.png");
                     if (logoStream != null) {
@@ -686,7 +645,6 @@ public class NuevoRemitoView extends VBox {
                 datosNegocio.addCell(celdaTexto("Los Cóndores 4814 - B° Alejandro Centeno - Córdoba", fontNormal));
                 datosNegocio.addCell(celdaTexto("dicorcarbones@gmail.com", fontNormal));
                 
-                // Datos del remito
                 PdfPTable datosRemito = new PdfPTable(1);
                 datosRemito.addCell(celdaTexto("REMITO - ORIGINAL", fontBold, Rectangle.NO_BORDER, Element.ALIGN_RIGHT));
                 datosRemito.addCell(celdaTexto("N° " + remitoNumero.getText(), fontNormal, Rectangle.NO_BORDER, Element.ALIGN_RIGHT));
@@ -704,7 +662,6 @@ public class NuevoRemitoView extends VBox {
                 document.add(headerTable);
                 document.add(new Paragraph(" "));
                 
-                // Datos del cliente
                 PdfPTable clienteTable = new PdfPTable(2);
                 clienteTable.setWidthPercentage(100);
                 clienteTable.setSpacingBefore(5f);
@@ -717,16 +674,14 @@ public class NuevoRemitoView extends VBox {
                 String cuitFormateado = formatearCUIT(cuitCliente);
                 clienteTable.addCell(celdaTexto("CUIT: " + cuitFormateado, fontNormal, Rectangle.BOX));
                 
-                // OBTENER CONDICIÓN DE IVA SELECCIONADA
-                String condicionIVA = "Consumidor Final";  // valor por defecto
+                String condicionIVA = "Consumidor Final";
                 if (groupIVA.getSelectedToggle() != null) {
                     RadioButton selected = (RadioButton) groupIVA.getSelectedToggle();
                     condicionIVA = selected.getText();
                 }
                 clienteTable.addCell(celdaTexto("CONDICIÓN IVA: " + condicionIVA, fontNormal, Rectangle.BOX));
                 
-                // OBTENER CONDICIÓN DE VENTA SELECCIONADA
-                String condicionVenta = "Contado";  // valor por defecto
+                String condicionVenta = "Contado";
                 if (groupVenta.getSelectedToggle() != null) {
                     RadioButton selected = (RadioButton) groupVenta.getSelectedToggle();
                     condicionVenta = selected.getText();
@@ -736,7 +691,6 @@ public class NuevoRemitoView extends VBox {
                 document.add(clienteTable);
                 document.add(new com.lowagie.text.Chunk(new LineSeparator(1f, 100, null, Element.ALIGN_CENTER, -2)));
                 
-                // Tabla de productos
                 PdfPTable tabla = new PdfPTable(6);
                 tabla.setWidths(new float[]{1.2f, 0.8f, 2.5f, 1.2f, 1.2f, 1.3f});
                 tabla.setWidthPercentage(100);
@@ -781,23 +735,15 @@ public class NuevoRemitoView extends VBox {
                 
                 document.close();
                 
-                // Guardar en base de datos
                 guardarEnBaseDatos(file.getAbsolutePath());
                 
-                Alert alert = new Alert(Alert.AlertType.INFORMATION);
-                alert.setTitle("PDF generado");
-                alert.setHeaderText("¡Remito guardado exitosamente!");
-                alert.setContentText("El remito se guardó en:\n" + file.getAbsolutePath() + "\n\nTambién se guardó en la base de datos.");
-                alert.showAndWait();
+                mostrarAlerta(Alert.AlertType.INFORMATION, "PDF generado", 
+                    "¡Remito guardado exitosamente!\n\nEl remito se guardó en:\n" + file.getAbsolutePath() + "\n\nTambién se guardó en la base de datos.");
             }
             
         } catch (Exception e) {
             e.printStackTrace();
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Error al generar PDF");
-            alert.setHeaderText("Ocurrió un error al guardar el PDF.");
-            alert.setContentText(e.getMessage());
-            alert.showAndWait();
+            mostrarAlerta(Alert.AlertType.ERROR, "Error al generar PDF", "Ocurrió un error al guardar el PDF.\n" + e.getMessage());
         }
     }
     
@@ -857,6 +803,29 @@ public class NuevoRemitoView extends VBox {
         }
         
         return cuit;
+    }
+    
+    /**
+     * Muestra un Alert correctamente vinculado al Stage principal
+     * para evitar problemas en pantalla completa
+     */
+    private void mostrarAlerta(Alert.AlertType tipo, String titulo, String contenido) {
+        Alert alert = new Alert(tipo);
+        alert.setTitle(titulo);
+        alert.setHeaderText(null);
+        alert.setContentText(contenido);
+        
+        // CLAVE: Vincular al Stage principal para evitar minimización
+        try {
+            Stage owner = NavigationManager.getInstance().getPrimaryStage();
+            if (owner != null) {
+                alert.initOwner(owner);
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ No se pudo vincular Alert al Stage principal");
+        }
+        
+        alert.showAndWait();
     }
     
     private PdfPCell celdaTexto(String texto, com.lowagie.text.Font fuente) {

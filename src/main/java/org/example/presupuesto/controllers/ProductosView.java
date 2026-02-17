@@ -23,9 +23,7 @@ public class ProductosView extends VBox {
     
     private TableView<Producto> tablaProductos;
     private TextField searchField;
-    private ComboBox<String> cmbCategoria;
-    private Label totalProductosLabel;
-    private ObservableList<Producto> todosLosProductos;
+    private ComboBox<String> comboCategoria;
     
     private final Locale localeAR = new Locale("es", "AR");
     private final NumberFormat currencyFormatter = NumberFormat.getCurrencyInstance(localeAR);
@@ -36,10 +34,11 @@ public class ProductosView extends VBox {
         setStyle("-fx-background-color: #f3f4f6;");
         
         HBox header = createHeader();
-        VBox toolbar = createToolbar();
+        HBox toolbar = createToolbar();
         VBox tableContainer = createTable();
         
         getChildren().addAll(header, toolbar, tableContainer);
+        
         cargarProductos();
     }
     
@@ -48,12 +47,11 @@ public class ProductosView extends VBox {
         header.setAlignment(Pos.CENTER_LEFT);
         header.setSpacing(15);
         header.setPadding(new Insets(20));
-        header.setStyle("-fx-background-color: #1e3c72; -fx-background-radius: 10;");
+        header.setStyle("-fx-background-color: #10b981; -fx-background-radius: 10;");
         
-        // Botón Volver
         Button btnVolver = new Button("← Volver");
         btnVolver.setStyle(
-            "-fx-background-color: #3b82f6; " +
+            "-fx-background-color: #059669; " +
             "-fx-text-fill: white; " +
             "-fx-font-size: 14px; " +
             "-fx-font-weight: bold; " +
@@ -66,18 +64,8 @@ public class ProductosView extends VBox {
             NavigationManager.getInstance().navigateTo(dashboard);
         });
         
-        // Hover effect
         btnVolver.setOnMouseEntered(e -> btnVolver.setStyle(
-            "-fx-background-color: #2563eb; " +
-            "-fx-text-fill: white; " +
-            "-fx-font-size: 14px; " +
-            "-fx-font-weight: bold; " +
-            "-fx-padding: 10 20; " +
-            "-fx-cursor: hand; " +
-            "-fx-background-radius: 5;"
-        ));
-        btnVolver.setOnMouseExited(e -> btnVolver.setStyle(
-            "-fx-background-color: #3b82f6; " +
+            "-fx-background-color: #047857; " +
             "-fx-text-fill: white; " +
             "-fx-font-size: 14px; " +
             "-fx-font-weight: bold; " +
@@ -86,7 +74,17 @@ public class ProductosView extends VBox {
             "-fx-background-radius: 5;"
         ));
         
-        Label title = new Label("📦 Catálogo de Productos");
+        btnVolver.setOnMouseExited(e -> btnVolver.setStyle(
+            "-fx-background-color: #059669; " +
+            "-fx-text-fill: white; " +
+            "-fx-font-size: 14px; " +
+            "-fx-font-weight: bold; " +
+            "-fx-padding: 10 20; " +
+            "-fx-cursor: hand; " +
+            "-fx-background-radius: 5;"
+        ));
+        
+        Label title = new Label("📦 Gestión de Productos");
         title.setFont(Font.font("System", FontWeight.BOLD, 24));
         title.setTextFill(Color.WHITE);
         
@@ -97,91 +95,75 @@ public class ProductosView extends VBox {
         return header;
     }
     
-    private VBox createToolbar() {
-        VBox container = new VBox(10);
+    private HBox createToolbar() {
+        HBox toolbar = new HBox(15);
+        toolbar.setAlignment(Pos.CENTER_LEFT);
+        toolbar.setPadding(new Insets(10));
+        toolbar.setStyle("-fx-background-color: white; -fx-background-radius: 10;");
         
-        // Primera fila: Búsqueda y filtros
-        HBox toolbarTop = new HBox(15);
-        toolbarTop.setAlignment(Pos.CENTER_LEFT);
+        Label lblBuscar = new Label("🔍 Buscar:");
+        lblBuscar.setFont(Font.font("System", FontWeight.BOLD, 14));
         
-        // Campo de búsqueda
         searchField = new TextField();
-        searchField.setPromptText("🔍 Buscar por código o descripción...");
-        searchField.setPrefWidth(300);
-        searchField.setStyle("-fx-font-size: 14px; -fx-padding: 8;");
-        searchField.textProperty().addListener((obs, old, newValue) -> filtrarProductos());
+        searchField.setPromptText("Código o descripción...");
+        searchField.setPrefWidth(250);
+        searchField.textProperty().addListener((obs, oldVal, newVal) -> filtrarProductos());
         
-        // Filtro por categoría
         Label lblCategoria = new Label("Categoría:");
-        lblCategoria.setStyle("-fx-font-weight: bold; -fx-font-size: 13px;");
+        lblCategoria.setFont(Font.font("System", FontWeight.BOLD, 14));
         
-        cmbCategoria = new ComboBox<>();
-        cmbCategoria.getItems().addAll("TODAS", "CARBONES", "INTERRUPTORES", "REPUESTOS VARIOS");
-        cmbCategoria.setValue("TODAS");
-        cmbCategoria.setPrefWidth(180);
-        cmbCategoria.setStyle("-fx-font-size: 13px;");
-        cmbCategoria.setOnAction(e -> filtrarProductos());
+        comboCategoria = new ComboBox<>();
+        comboCategoria.getItems().addAll("TODAS", "CARBONES", "INTERRUPTORES", "REPUESTOS VARIOS");
+        comboCategoria.setValue("TODAS");
+        comboCategoria.setOnAction(e -> filtrarProductos());
         
-        // Label de total
-        totalProductosLabel = new Label("Total: 0 productos");
-        totalProductosLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #1f2937;");
+        Button btnNuevo = new Button("➕ Nuevo Producto");
+        btnNuevo.setStyle("-fx-background-color: #10b981; -fx-text-fill: white; -fx-font-size: 13px; -fx-padding: 8 15; -fx-cursor: hand;");
+        btnNuevo.setOnAction(e -> mostrarDialogoNuevoProducto());
+        
+        Button btnActualizarPrecios = new Button("💲 Actualizar Precios");
+        btnActualizarPrecios.setStyle("-fx-background-color: #f59e0b; -fx-text-fill: white; -fx-font-size: 13px; -fx-padding: 8 15; -fx-cursor: hand;");
+        btnActualizarPrecios.setOnAction(e -> mostrarDialogoActualizarPrecios());
+        
+        Button btnRefrescar = new Button("🔄 Refrescar");
+        btnRefrescar.setStyle("-fx-background-color: #3b82f6; -fx-text-fill: white; -fx-font-size: 13px; -fx-padding: 8 15; -fx-cursor: hand;");
+        btnRefrescar.setOnAction(e -> cargarProductos());
         
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         
-        toolbarTop.getChildren().addAll(searchField, lblCategoria, cmbCategoria, totalProductosLabel, spacer);
-        
-        // Segunda fila: Botones de acción
-        HBox toolbarBottom = new HBox(10);
-        toolbarBottom.setAlignment(Pos.CENTER_RIGHT);
-        
-        Button btnNuevo = new Button("➕ Nuevo Producto");
-        btnNuevo.setStyle("-fx-background-color: #10b981; -fx-text-fill: white; -fx-font-size: 13px; -fx-padding: 8 15; -fx-cursor: hand;");
-        btnNuevo.setOnAction(e -> abrirFormularioNuevo());
-        
-        Button btnActualizarPrecios = new Button("💰 Actualizar Precios");
-        btnActualizarPrecios.setStyle("-fx-background-color: #f59e0b; -fx-text-fill: white; -fx-font-size: 13px; -fx-padding: 8 15; -fx-cursor: hand;");
-        btnActualizarPrecios.setOnAction(e -> abrirDialogoActualizarPrecios());
-        
-        Button btnRefrescar = new Button("🔄 Refrescar");
-        btnRefrescar.setStyle("-fx-font-size: 13px; -fx-padding: 8 15;");
-        btnRefrescar.setOnAction(e -> cargarProductos());
-        
-        toolbarBottom.getChildren().addAll(btnNuevo, btnActualizarPrecios, btnRefrescar);
-        
-        container.getChildren().addAll(toolbarTop, toolbarBottom);
-        return container;
+        toolbar.getChildren().addAll(lblBuscar, searchField, lblCategoria, comboCategoria, spacer, btnNuevo, btnActualizarPrecios, btnRefrescar);
+        return toolbar;
     }
     
     private VBox createTable() {
         VBox container = new VBox(10);
+        container.setPadding(new Insets(10));
+        container.setStyle("-fx-background-color: white; -fx-background-radius: 10;");
+        VBox.setVgrow(container, Priority.ALWAYS);
+        
+        Label titulo = new Label("Lista de Productos");
+        titulo.setFont(Font.font("System", FontWeight.BOLD, 16));
+        titulo.setPadding(new Insets(10));
         
         tablaProductos = new TableView<>();
-        tablaProductos.setStyle("-fx-background-color: white; -fx-background-radius: 10;");
-        tablaProductos.setPrefHeight(450);
+        VBox.setVgrow(tablaProductos, Priority.ALWAYS);
         
-        // Columna Código
         TableColumn<Producto, String> colCodigo = new TableColumn<>("Código");
         colCodigo.setCellValueFactory(new PropertyValueFactory<>("codigo"));
         colCodigo.setPrefWidth(100);
-        colCodigo.setStyle("-fx-alignment: CENTER;");
         
-        // Columna Descripción
         TableColumn<Producto, String> colDescripcion = new TableColumn<>("Descripción");
         colDescripcion.setCellValueFactory(new PropertyValueFactory<>("descripcion"));
-        colDescripcion.setPrefWidth(400);
+        colDescripcion.setPrefWidth(350);
         
-        // Columna Categoría
         TableColumn<Producto, String> colCategoria = new TableColumn<>("Categoría");
         colCategoria.setCellValueFactory(new PropertyValueFactory<>("categoria"));
         colCategoria.setPrefWidth(150);
-        colCategoria.setStyle("-fx-alignment: CENTER;");
         
-        // Columna Precio
-        TableColumn<Producto, Double> colPrecio = new TableColumn<>("Precio Unitario");
+        TableColumn<Producto, Double> colPrecio = new TableColumn<>("Precio");
         colPrecio.setCellValueFactory(new PropertyValueFactory<>("precioUnitario"));
         colPrecio.setPrefWidth(150);
-        colPrecio.setStyle("-fx-alignment: CENTER-RIGHT;");
         colPrecio.setCellFactory(column -> new TableCell<>() {
             @Override
             protected void updateItem(Double value, boolean empty) {
@@ -195,20 +177,19 @@ public class ProductosView extends VBox {
             }
         });
         
-        // Columna Acciones
         TableColumn<Producto, Void> colAcciones = new TableColumn<>("Acciones");
-        colAcciones.setPrefWidth(200);
+        colAcciones.setPrefWidth(150);
         colAcciones.setCellFactory(column -> new TableCell<>() {
-            private final Button btnEditar = new Button("✏️ Editar");
+            private final Button btnEditar = new Button("✏️");
             private final Button btnEliminar = new Button("🗑️");
             
             {
-                btnEditar.setStyle("-fx-background-color: #3b82f6; -fx-text-fill: white; -fx-font-size: 11px; -fx-padding: 5 10;");
-                btnEliminar.setStyle("-fx-background-color: #ef4444; -fx-text-fill: white; -fx-font-size: 11px; -fx-padding: 5 10;");
+                btnEditar.setStyle("-fx-background-color: #3b82f6; -fx-text-fill: white; -fx-font-size: 11px; -fx-padding: 5 10; -fx-cursor: hand;");
+                btnEliminar.setStyle("-fx-background-color: #ef4444; -fx-text-fill: white; -fx-font-size: 11px; -fx-padding: 5 10; -fx-cursor: hand;");
                 
                 btnEditar.setOnAction(e -> {
                     Producto producto = getTableView().getItems().get(getIndex());
-                    editarProducto(producto);
+                    mostrarDialogoEditarProducto(producto);
                 });
                 
                 btnEliminar.setOnAction(e -> {
@@ -223,88 +204,77 @@ public class ProductosView extends VBox {
                 if (empty) {
                     setGraphic(null);
                 } else {
-                    HBox buttons = new HBox(8);
+                    HBox buttons = new HBox(5, btnEditar, btnEliminar);
                     buttons.setAlignment(Pos.CENTER);
-                    buttons.getChildren().addAll(btnEditar, btnEliminar);
                     setGraphic(buttons);
                 }
             }
         });
         
         tablaProductos.getColumns().addAll(colCodigo, colDescripcion, colCategoria, colPrecio, colAcciones);
-        container.getChildren().add(tablaProductos);
         
+        container.getChildren().addAll(titulo, tablaProductos);
         return container;
     }
     
     private void cargarProductos() {
         try {
             List<Producto> productos = ProductoDAO.obtenerTodosLosProductos();
-            todosLosProductos = FXCollections.observableArrayList(productos);
-            tablaProductos.setItems(todosLosProductos);
-            
-            totalProductosLabel.setText("Total: " + productos.size() + " productos");
-            System.out.println("✅ Productos cargados: " + productos.size());
-            
+            ObservableList<Producto> items = FXCollections.observableArrayList(productos);
+            tablaProductos.setItems(items);
+            System.out.println("✅ Cargados " + productos.size() + " productos");
         } catch (Exception e) {
             System.err.println("❌ Error al cargar productos: " + e.getMessage());
             e.printStackTrace();
-            
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Error");
-            alert.setContentText("No se pudieron cargar los productos: " + e.getMessage());
-            alert.showAndWait();
+            mostrarAlerta(Alert.AlertType.ERROR, "Error", "No se pudieron cargar los productos.");
         }
     }
     
     private void filtrarProductos() {
-        String textoBusqueda = searchField.getText();
-        String categoriaSeleccionada = cmbCategoria.getValue();
+        String textoBusqueda = searchField.getText().toLowerCase();
+        String categoriaSeleccionada = comboCategoria.getValue();
         
-        // Si no hay filtros, mostrar todo
-        if ((textoBusqueda == null || textoBusqueda.trim().isEmpty()) && 
-            (categoriaSeleccionada == null || categoriaSeleccionada.equals("TODAS"))) {
-            tablaProductos.setItems(todosLosProductos);
-            totalProductosLabel.setText("Total: " + todosLosProductos.size() + " productos");
-            return;
+        try {
+            List<Producto> todosProductos = ProductoDAO.obtenerTodosLosProductos();
+            
+            List<Producto> filtrados = todosProductos.stream()
+                .filter(p -> {
+                    boolean matchTexto = textoBusqueda.isEmpty() || 
+                        p.getCodigo().toLowerCase().contains(textoBusqueda) ||
+                        p.getDescripcion().toLowerCase().contains(textoBusqueda);
+                    
+                    boolean matchCategoria = categoriaSeleccionada.equals("TODAS") || 
+                        p.getCategoria().equals(categoriaSeleccionada);
+                    
+                    return matchTexto && matchCategoria;
+                })
+                .toList();
+            
+            ObservableList<Producto> items = FXCollections.observableArrayList(filtrados);
+            tablaProductos.setItems(items);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error al filtrar productos: " + e.getMessage());
         }
-        
-        // Aplicar filtros combinados
-        ObservableList<Producto> filtrados = todosLosProductos;
-        
-        // Filtro por categoría
-        if (categoriaSeleccionada != null && !categoriaSeleccionada.equals("TODAS")) {
-            final String catFinal = categoriaSeleccionada;
-            filtrados = filtrados.filtered(producto -> 
-                producto.getCategoria() != null && producto.getCategoria().equals(catFinal)
-            );
-        }
-        
-        // Filtro por texto
-        if (textoBusqueda != null && !textoBusqueda.trim().isEmpty()) {
-            String filtroLower = textoBusqueda.toLowerCase();
-            filtrados = filtrados.filtered(producto ->
-                producto.getCodigo().toLowerCase().contains(filtroLower) ||
-                producto.getDescripcion().toLowerCase().contains(filtroLower)
-            );
-        }
-        
-        tablaProductos.setItems(filtrados);
-        totalProductosLabel.setText("Mostrando: " + filtrados.size() + " de " + todosLosProductos.size() + " productos");
     }
     
-    private void abrirFormularioNuevo() {
-        mostrarFormularioProducto(null);
-    }
-    
-    private void editarProducto(Producto producto) {
-        mostrarFormularioProducto(producto);
-    }
-    
-    private void mostrarFormularioProducto(Producto producto) {
-        Dialog<ButtonType> dialog = new Dialog<>();
-        dialog.setTitle(producto == null ? "Nuevo Producto" : "Editar Producto");
-        dialog.setHeaderText(producto == null ? "Agregar nuevo producto al catálogo" : "Modificar producto");
+    private void mostrarDialogoNuevoProducto() {
+        Dialog<Producto> dialog = new Dialog<>();
+        dialog.setTitle("Nuevo Producto");
+        dialog.setHeaderText("Agregar nuevo producto");
+        
+        // Vincular al Stage principal
+        try {
+            Stage owner = NavigationManager.getInstance().getPrimaryStage();
+            if (owner != null) {
+                dialog.initOwner(owner);
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ No se pudo vincular Dialog al Stage principal");
+        }
+        
+        ButtonType btnGuardar = new ButtonType("Guardar", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(btnGuardar, ButtonType.CANCEL);
         
         GridPane grid = new GridPane();
         grid.setHgap(10);
@@ -312,222 +282,242 @@ public class ProductosView extends VBox {
         grid.setPadding(new Insets(20));
         
         TextField txtCodigo = new TextField();
-        txtCodigo.setPromptText("Ej: 401");
+        txtCodigo.setPromptText("Código");
+        
         TextField txtDescripcion = new TextField();
-        txtDescripcion.setPromptText("Ej: Amoladora 4 1/2");
+        txtDescripcion.setPromptText("Descripción");
+        
+        ComboBox<String> comboCategoria = new ComboBox<>();
+        comboCategoria.getItems().addAll("CARBONES", "INTERRUPTORES", "REPUESTOS VARIOS");
+        comboCategoria.setValue("CARBONES");
+        
         TextField txtPrecio = new TextField();
-        txtPrecio.setPromptText("Ej: 1500.50");
-        
-        ComboBox<String> cmbCategoriaForm = new ComboBox<>();
-        cmbCategoriaForm.getItems().addAll("CARBONES", "INTERRUPTORES", "REPUESTOS VARIOS");
-        cmbCategoriaForm.setValue("CARBONES");
-        
-        if (producto != null) {
-            txtCodigo.setText(producto.getCodigo());
-            txtCodigo.setEditable(false); // No permitir cambiar el código
-            txtDescripcion.setText(producto.getDescripcion());
-            txtPrecio.setText(String.valueOf(producto.getPrecioUnitario()));
-            cmbCategoriaForm.setValue(producto.getCategoria());
-        }
+        txtPrecio.setPromptText("Precio");
         
         grid.add(new Label("Código:"), 0, 0);
         grid.add(txtCodigo, 1, 0);
         grid.add(new Label("Descripción:"), 0, 1);
         grid.add(txtDescripcion, 1, 1);
-        grid.add(new Label("Precio Unitario:"), 0, 2);
-        grid.add(txtPrecio, 1, 2);
-        grid.add(new Label("Categoría:"), 0, 3);
-        grid.add(cmbCategoriaForm, 1, 3);
+        grid.add(new Label("Categoría:"), 0, 2);
+        grid.add(comboCategoria, 1, 2);
+        grid.add(new Label("Precio:"), 0, 3);
+        grid.add(txtPrecio, 1, 3);
         
         dialog.getDialogPane().setContent(grid);
-        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
         
-        dialog.showAndWait().ifPresent(response -> {
-            if (response == ButtonType.OK) {
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == btnGuardar) {
                 try {
-                    String codigo = txtCodigo.getText().trim();
-                    String descripcion = txtDescripcion.getText().trim();
-                    double precio = Double.parseDouble(txtPrecio.getText().trim());
-                    String categoria = cmbCategoriaForm.getValue();
+                    double precio = Double.parseDouble(txtPrecio.getText());
+                    String codigo = txtCodigo.getText();
+                    String descripcion = txtDescripcion.getText();
+                    String categoria = comboCategoria.getValue();
                     
-                    if (codigo.isEmpty() || descripcion.isEmpty()) {
-                        throw new IllegalArgumentException("Código y descripción son obligatorios");
+                    // Usar agregarProducto en vez de crear
+                    if (ProductoDAO.agregarProducto(codigo, descripcion, precio, categoria)) {
+                        return new Producto(0, codigo, descripcion, precio, categoria);
                     }
-                    
-                    boolean exito;
-                    if (producto == null) {
-                        exito = ProductoDAO.agregarProducto(codigo, descripcion, precio, categoria);
-                    } else {
-                        exito = ProductoDAO.actualizarProducto(codigo, descripcion, precio);
-                    }
-                    
-                    if (exito) {
-                        cargarProductos();
-                        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-                        alert.setTitle("Éxito");
-                        alert.setContentText("Producto " + (producto == null ? "agregado" : "actualizado") + " correctamente");
-                        alert.showAndWait();
-                    }
-                    
+                    return null;
                 } catch (NumberFormatException e) {
-                    Alert alert = new Alert(Alert.AlertType.ERROR);
-                    alert.setTitle("Error");
-                    alert.setContentText("El precio debe ser un número válido");
-                    alert.showAndWait();
-                } catch (Exception e) {
-                    Alert alert = new Alert(Alert.AlertType.ERROR);
-                    alert.setTitle("Error");
-                    alert.setContentText("Error: " + e.getMessage());
-                    alert.showAndWait();
+                    mostrarAlerta(Alert.AlertType.ERROR, "Error", "El precio debe ser un número válido.");
+                    return null;
                 }
+            }
+            return null;
+        });
+        
+        dialog.showAndWait().ifPresent(producto -> {
+            if (producto != null) {
+                cargarProductos();
+                mostrarAlerta(Alert.AlertType.INFORMATION, "Éxito", "Producto creado correctamente.");
+            }
+        });
+    }
+    
+    private void mostrarDialogoEditarProducto(Producto producto) {
+        Dialog<Boolean> dialog = new Dialog<>();
+        dialog.setTitle("Editar Producto");
+        dialog.setHeaderText("Editar producto: " + producto.getCodigo());
+        
+        // Vincular al Stage principal
+        try {
+            Stage owner = NavigationManager.getInstance().getPrimaryStage();
+            if (owner != null) {
+                dialog.initOwner(owner);
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ No se pudo vincular Dialog al Stage principal");
+        }
+        
+        ButtonType btnGuardar = new ButtonType("Guardar", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(btnGuardar, ButtonType.CANCEL);
+        
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20));
+        
+        TextField txtCodigo = new TextField(producto.getCodigo());
+        txtCodigo.setEditable(false); // El código no se puede cambiar
+        
+        TextField txtDescripcion = new TextField(producto.getDescripcion());
+        TextField txtPrecio = new TextField(String.valueOf(producto.getPrecioUnitario()));
+        
+        grid.add(new Label("Código:"), 0, 0);
+        grid.add(txtCodigo, 1, 0);
+        grid.add(new Label("Descripción:"), 0, 1);
+        grid.add(txtDescripcion, 1, 1);
+        grid.add(new Label("Precio:"), 0, 2);
+        grid.add(txtPrecio, 1, 2);
+        
+        dialog.getDialogPane().setContent(grid);
+        
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == btnGuardar) {
+                try {
+                    double precio = Double.parseDouble(txtPrecio.getText());
+                    return ProductoDAO.actualizarProducto(producto.getCodigo(), txtDescripcion.getText(), precio);
+                } catch (NumberFormatException e) {
+                    mostrarAlerta(Alert.AlertType.ERROR, "Error", "El precio debe ser un número válido.");
+                    return false;
+                }
+            }
+            return false;
+        });
+        
+        dialog.showAndWait().ifPresent(actualizado -> {
+            if (actualizado) {
+                cargarProductos();
+                mostrarAlerta(Alert.AlertType.INFORMATION, "Éxito", "Producto actualizado correctamente.");
+            } else {
+                mostrarAlerta(Alert.AlertType.ERROR, "Error", "No se pudo actualizar el producto.");
             }
         });
     }
     
     private void eliminarProducto(Producto producto) {
-        Alert confirmacion = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmacion.setTitle("Confirmar eliminación");
-        confirmacion.setHeaderText("¿Eliminar producto " + producto.getCodigo() + "?");
-        confirmacion.setContentText(producto.getDescripcion() + "\n\nEsta acción no se puede deshacer.");
+        if (mostrarConfirmacion("Confirmar eliminación", 
+            "¿Estás seguro de eliminar el producto \"" + producto.getDescripcion() + "\"?")) {
+            
+            if (ProductoDAO.eliminarProducto(producto.getCodigo())) {
+                cargarProductos();
+                mostrarAlerta(Alert.AlertType.INFORMATION, "Éxito", "Producto eliminado correctamente.");
+            } else {
+                mostrarAlerta(Alert.AlertType.ERROR, "Error", "No se pudo eliminar el producto.");
+            }
+        }
+    }
+    
+    private void mostrarDialogoActualizarPrecios() {
+        Dialog<Double> dialog = new Dialog<>();
+        dialog.setTitle("Actualizar Precios Masivamente");
+        dialog.setHeaderText("Aplicar porcentaje de aumento a productos por categoría");
         
-        confirmacion.showAndWait().ifPresent(response -> {
-            if (response == ButtonType.OK) {
-                boolean eliminado = ProductoDAO.eliminarProducto(producto.getCodigo());
+        // Vincular al Stage principal
+        try {
+            Stage owner = NavigationManager.getInstance().getPrimaryStage();
+            if (owner != null) {
+                dialog.initOwner(owner);
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ No se pudo vincular Dialog al Stage principal");
+        }
+        
+        ButtonType btnAplicar = new ButtonType("Aplicar", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(btnAplicar, ButtonType.CANCEL);
+        
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20));
+        
+        ComboBox<String> comboCategoria = new ComboBox<>();
+        comboCategoria.getItems().addAll("TODAS", "CARBONES", "INTERRUPTORES", "REPUESTOS VARIOS");
+        comboCategoria.setValue("TODAS");
+        
+        TextField txtPorcentaje = new TextField();
+        txtPorcentaje.setPromptText("Ej: 10 para 10%");
+        
+        grid.add(new Label("Categoría:"), 0, 0);
+        grid.add(comboCategoria, 1, 0);
+        grid.add(new Label("Porcentaje de aumento (%):"), 0, 1);
+        grid.add(txtPorcentaje, 1, 1);
+        
+        dialog.getDialogPane().setContent(grid);
+        
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == btnAplicar) {
+                try {
+                    return Double.parseDouble(txtPorcentaje.getText());
+                } catch (NumberFormatException e) {
+                    mostrarAlerta(Alert.AlertType.ERROR, "Error", "El porcentaje debe ser un número válido.");
+                    return null;
+                }
+            }
+            return null;
+        });
+        
+        dialog.showAndWait().ifPresent(porcentaje -> {
+            if (porcentaje != null) {
+                String categoria = comboCategoria.getValue();
                 
-                if (eliminado) {
-                    Alert success = new Alert(Alert.AlertType.INFORMATION);
-                    success.setTitle("Producto eliminado");
-                    success.setContentText("El producto se eliminó correctamente.");
-                    success.showAndWait();
-                    cargarProductos();
-                } else {
-                    Alert error = new Alert(Alert.AlertType.ERROR);
-                    error.setTitle("Error");
-                    error.setContentText("No se pudo eliminar el producto.");
-                    error.showAndWait();
+                if (mostrarConfirmacion("Confirmar actualización masiva",
+                    "¿Estás seguro de aplicar un aumento del " + porcentaje + "% a la categoría " + categoria + "?\n\nEsta acción no se puede deshacer.")) {
+                    
+                    int productosActualizados = ProductoDAO.actualizarPreciosPorCategoria(categoria, porcentaje);
+                    
+                    if (productosActualizados > 0) {
+                        cargarProductos();
+                        mostrarAlerta(Alert.AlertType.INFORMATION, "Éxito", 
+                            "Se actualizaron " + productosActualizados + " productos con un aumento del " + porcentaje + "%");
+                    } else {
+                        mostrarAlerta(Alert.AlertType.ERROR, "Error", "No se pudieron actualizar los precios.");
+                    }
                 }
             }
         });
     }
     
-    private void abrirDialogoActualizarPrecios() {
-        Dialog<ButtonType> dialog = new Dialog<>();
-        dialog.setTitle("💰 Actualizar Precios");
-        dialog.setHeaderText("Aplicar aumento de precios por categoría");
+    /**
+     * Muestra un Alert correctamente vinculado al Stage principal
+     * para evitar problemas en pantalla completa
+     */
+    private void mostrarAlerta(Alert.AlertType tipo, String titulo, String contenido) {
+        Alert alert = new Alert(tipo);
+        alert.setTitle(titulo);
+        alert.setHeaderText(null);
+        alert.setContentText(contenido);
         
-        GridPane grid = new GridPane();
-        grid.setHgap(10);
-        grid.setVgap(15);
-        grid.setPadding(new Insets(20));
-        
-        // Porcentaje
-        Label lblPorcentaje = new Label("Porcentaje de aumento (%):");
-        TextField txtPorcentaje = new TextField();
-        txtPorcentaje.setPromptText("Ej: 15");
-        txtPorcentaje.setPrefWidth(100);
-        
-        // Selector de categoría
-        Label lblCategoria = new Label("Aplicar a:");
-        ComboBox<String> cmbCategoriaDialog = new ComboBox<>();
-        cmbCategoriaDialog.getItems().addAll("TODOS", "CARBONES", "INTERRUPTORES", "REPUESTOS VARIOS");
-        cmbCategoriaDialog.setValue("TODOS");
-        cmbCategoriaDialog.setPrefWidth(200);
-        
-        // Label con cantidad de productos
-        Label lblCantidad = new Label("");
-        lblCantidad.setStyle("-fx-text-fill: #6b7280; -fx-font-size: 12px;");
-        
-        // Actualizar cantidad cuando cambia la categoría
-        cmbCategoriaDialog.setOnAction(e -> {
-            String cat = cmbCategoriaDialog.getValue();
-            int cantidad = ProductoDAO.contarProductosPorCategoria(cat);
-            lblCantidad.setText("(" + cantidad + " productos)");
-        });
-        
-        // Inicializar cantidad
-        int cantidadInicial = ProductoDAO.contarProductosPorCategoria("TODOS");
-        lblCantidad.setText("(" + cantidadInicial + " productos)");
-        
-        // Vista previa
-        Label lblVistaPrevia = new Label("Vista previa (primeros 5):");
-        lblVistaPrevia.setStyle("-fx-font-weight: bold; -fx-font-size: 12px;");
-        TextArea txtVistaPrevia = new TextArea();
-        txtVistaPrevia.setEditable(false);
-        txtVistaPrevia.setPrefRowCount(5);
-        txtVistaPrevia.setStyle("-fx-font-family: monospace; -fx-font-size: 11px;");
-        
-        // Botón para actualizar vista previa
-        Button btnVistaPrevia = new Button("🔍 Ver Vista Previa");
-        btnVistaPrevia.setStyle("-fx-font-size: 12px;");
-        btnVistaPrevia.setOnAction(e -> {
-            try {
-                double porcentaje = Double.parseDouble(txtPorcentaje.getText().trim());
-                String categoria = cmbCategoriaDialog.getValue();
-                
-                List<String> previews = ProductoDAO.obtenerVistaPreviaCambios(categoria, porcentaje, 5);
-                txtVistaPrevia.setText(String.join("\n", previews));
-                
-            } catch (NumberFormatException ex) {
-                txtVistaPrevia.setText("⚠️ Ingresá un porcentaje válido");
+        try {
+            Stage owner = NavigationManager.getInstance().getPrimaryStage();
+            if (owner != null) {
+                alert.initOwner(owner);
             }
-        });
+        } catch (Exception e) {
+            System.err.println("⚠️ No se pudo vincular Alert al Stage principal");
+        }
         
-        grid.add(lblPorcentaje, 0, 0);
-        grid.add(txtPorcentaje, 1, 0);
-        grid.add(lblCategoria, 0, 1);
-        grid.add(cmbCategoriaDialog, 1, 1);
-        grid.add(lblCantidad, 2, 1);
-        grid.add(btnVistaPrevia, 1, 2);
-        grid.add(lblVistaPrevia, 0, 3);
-        grid.add(txtVistaPrevia, 0, 4, 3, 1);
+        alert.showAndWait();
+    }
+    
+    /**
+     * Muestra un Alert de confirmación vinculado al Stage principal
+     */
+    private boolean mostrarConfirmacion(String titulo, String contenido) {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle(titulo);
+        alert.setHeaderText(null);
+        alert.setContentText(contenido);
         
-        dialog.getDialogPane().setContent(grid);
-        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-        
-        dialog.showAndWait().ifPresent(response -> {
-            if (response == ButtonType.OK) {
-                try {
-                    double porcentaje = Double.parseDouble(txtPorcentaje.getText().trim());
-                    String categoria = cmbCategoriaDialog.getValue();
-                    
-                    // Confirmación final
-                    Alert confirmacion = new Alert(Alert.AlertType.CONFIRMATION);
-                    confirmacion.setTitle("Confirmar actualización");
-                    confirmacion.setHeaderText("¿Aplicar aumento del " + porcentaje + "%?");
-                    
-                    int cantidad = ProductoDAO.contarProductosPorCategoria(categoria);
-                    confirmacion.setContentText(
-                        "Se actualizarán " + cantidad + " productos de la categoría: " + categoria + 
-                        "\n\nEsta acción no se puede deshacer."
-                    );
-                    
-                    confirmacion.showAndWait().ifPresent(confirmar -> {
-                        if (confirmar == ButtonType.OK) {
-                            int actualizados = ProductoDAO.actualizarPreciosPorCategoria(categoria, porcentaje);
-                            
-                            if (actualizados > 0) {
-                                Alert success = new Alert(Alert.AlertType.INFORMATION);
-                                success.setTitle("Precios actualizados");
-                                success.setHeaderText("✅ Actualización exitosa");
-                                success.setContentText(
-                                    "Se actualizaron " + actualizados + " productos.\n" +
-                                    "Aumento aplicado: " + porcentaje + "%"
-                                );
-                                success.showAndWait();
-                                
-                                // Recargar lista
-                                cargarProductos();
-                            }
-                        }
-                    });
-                    
-                } catch (NumberFormatException ex) {
-                    Alert error = new Alert(Alert.AlertType.ERROR);
-                    error.setTitle("Error");
-                    error.setContentText("Ingresá un porcentaje válido (número)");
-                    error.showAndWait();
-                }
+        try {
+            Stage owner = NavigationManager.getInstance().getPrimaryStage();
+            if (owner != null) {
+                alert.initOwner(owner);
             }
-        });
+        } catch (Exception e) {
+            System.err.println("⚠️ No se pudo vincular Alert al Stage principal");
+        }
+        
+        return alert.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK;
     }
 }

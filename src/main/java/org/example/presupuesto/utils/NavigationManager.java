@@ -4,10 +4,6 @@ import javafx.scene.Scene;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 
-/**
- * Gestor de navegación centralizado
- * Maneja el cambio de vistas en una única ventana
- */
 public class NavigationManager {
     
     private static NavigationManager instance;
@@ -25,22 +21,22 @@ public class NavigationManager {
     
     public void initialize(Stage stage) {
         this.primaryStage = stage;
+        this.scene = new Scene(new Pane(), 1400, 900);
+        stage.setScene(scene);
     }
     
     public void navigateTo(Pane view) {
-        if (scene == null) {
-            scene = new Scene(view, 1400, 900);
-            primaryStage.setScene(scene);
-        } else {
+        if (scene != null) {
             scene.setRoot(view);
+            System.out.println("✅ Navegación a: " + view.getClass().getSimpleName());
         }
-    }
-    
-    public Stage getPrimaryStage() {
-        return primaryStage;
     }
     
     public Scene getScene() {
         return scene;
+    }
+    
+    public Stage getPrimaryStage() {
+        return primaryStage;
     }
 }

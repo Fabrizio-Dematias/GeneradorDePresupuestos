@@ -265,10 +265,7 @@ public class HistorialPreciosView extends VBox {
             System.err.println("❌ Error al cargar historial: " + e.getMessage());
             e.printStackTrace();
             
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Error");
-            alert.setContentText("No se pudo cargar el historial: " + e.getMessage());
-            alert.showAndWait();
+            mostrarAlerta(Alert.AlertType.ERROR, "Error", "No se pudo cargar el historial de precios.");
         }
     }
     
@@ -306,5 +303,25 @@ public class HistorialPreciosView extends VBox {
         
         tablaHistorial.setItems(filtrados);
         totalRegistrosLabel.setText("Mostrando: " + filtrados.size() + " de " + todosLosRegistros.size() + " cambios");
+    }
+        /**
+     * Muestra un Alert correctamente vinculado al Stage principal
+     */
+    private void mostrarAlerta(Alert.AlertType tipo, String titulo, String contenido) {
+        Alert alert = new Alert(tipo);
+        alert.setTitle(titulo);
+        alert.setHeaderText(null);
+        alert.setContentText(contenido);
+        
+        try {
+            Stage owner = NavigationManager.getInstance().getPrimaryStage();
+            if (owner != null) {
+                alert.initOwner(owner);
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ No se pudo vincular Alert al Stage principal");
+        }
+        
+        alert.showAndWait();
     }
 }

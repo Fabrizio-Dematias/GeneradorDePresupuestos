@@ -342,10 +342,7 @@ public class FacturacionMensualView extends VBox {
             System.err.println("❌ Error al cargar facturación mensual: " + e.getMessage());
             e.printStackTrace();
             
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Error");
-            alert.setContentText("No se pudo cargar la facturación mensual: " + e.getMessage());
-            alert.showAndWait();
+            mostrarAlerta(Alert.AlertType.ERROR, "Error", "No se pudieron cargar los datos de facturación.");
         }
     }
     
@@ -415,5 +412,25 @@ public class FacturacionMensualView extends VBox {
             lblMejorMes.setText(mejorMes.getMesNombre());
             lblMejorMes.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #f59e0b;");
         }
+    }
+    /**
+ * Muestra un Alert correctamente vinculado al Stage principal
+ */
+    private void mostrarAlerta(Alert.AlertType tipo, String titulo, String contenido) {
+        Alert alert = new Alert(tipo);
+        alert.setTitle(titulo);
+        alert.setHeaderText(null);
+        alert.setContentText(contenido);
+        
+        try {
+            Stage owner = NavigationManager.getInstance().getPrimaryStage();
+            if (owner != null) {
+                alert.initOwner(owner);
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ No se pudo vincular Alert al Stage principal");
+        }
+        
+        alert.showAndWait();
     }
 }

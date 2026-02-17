@@ -24,9 +24,8 @@ public class ListaRemitosView extends VBox {
     
     private TableView<RemitoDAO.RemitoResumen> tablaRemitos;
     private TextField searchField;
-    private Label totalRemitosLabel;
-    private Label totalFacturacionLabel;
-    private ObservableList<RemitoDAO.RemitoResumen> todosLosRemitos;
+    private Label lblTotalRemitos;
+    private Label lblFacturacionTotal;
     
     private final Locale localeAR = new Locale("es", "AR");
     private final NumberFormat currencyFormatter = NumberFormat.getCurrencyInstance(localeAR);
@@ -37,11 +36,12 @@ public class ListaRemitosView extends VBox {
         setStyle("-fx-background-color: #f3f4f6;");
         
         HBox header = createHeader();
-        VBox toolbar = createToolbar();
+        HBox searchBar = createSearchBar();
         HBox stats = createStats();
         VBox tableContainer = createTable();
         
-        getChildren().addAll(header, toolbar, stats, tableContainer);
+        getChildren().addAll(header, searchBar, stats, tableContainer);
+        
         cargarRemitos();
     }
     
@@ -50,12 +50,11 @@ public class ListaRemitosView extends VBox {
         header.setAlignment(Pos.CENTER_LEFT);
         header.setSpacing(15);
         header.setPadding(new Insets(20));
-        header.setStyle("-fx-background-color: #6d28d9; -fx-background-radius: 10;");
+        header.setStyle("-fx-background-color: #8b5cf6; -fx-background-radius: 10;");
         
-        // Botón Volver
         Button btnVolver = new Button("← Volver");
         btnVolver.setStyle(
-            "-fx-background-color: #8b5cf6; " +
+            "-fx-background-color: #7c3aed; " +
             "-fx-text-fill: white; " +
             "-fx-font-size: 14px; " +
             "-fx-font-weight: bold; " +
@@ -68,9 +67,8 @@ public class ListaRemitosView extends VBox {
             NavigationManager.getInstance().navigateTo(dashboard);
         });
         
-        // Hover effect
         btnVolver.setOnMouseEntered(e -> btnVolver.setStyle(
-            "-fx-background-color: #5b21b6; " +
+            "-fx-background-color: #6d28d9; " +
             "-fx-text-fill: white; " +
             "-fx-font-size: 14px; " +
             "-fx-font-weight: bold; " +
@@ -78,8 +76,9 @@ public class ListaRemitosView extends VBox {
             "-fx-cursor: hand; " +
             "-fx-background-radius: 5;"
         ));
+        
         btnVolver.setOnMouseExited(e -> btnVolver.setStyle(
-            "-fx-background-color: #8b5cf6; " +
+            "-fx-background-color: #7c3aed; " +
             "-fx-text-fill: white; " +
             "-fx-font-size: 14px; " +
             "-fx-font-weight: bold; " +
@@ -99,41 +98,44 @@ public class ListaRemitosView extends VBox {
         return header;
     }
     
-    private VBox createToolbar() {
-        VBox container = new VBox(10);
+    private HBox createSearchBar() {
+        HBox searchBar = new HBox(15);
+        searchBar.setAlignment(Pos.CENTER_LEFT);
+        searchBar.setPadding(new Insets(10));
+        searchBar.setStyle("-fx-background-color: white; -fx-background-radius: 10;");
         
-        HBox toolbar = new HBox(15);
-        toolbar.setAlignment(Pos.CENTER_LEFT);
+        Label lblBuscar = new Label("🔍 Buscar:");
+        lblBuscar.setFont(Font.font("System", FontWeight.BOLD, 14));
         
-        // Campo de búsqueda
         searchField = new TextField();
-        searchField.setPromptText("🔍 Buscar por número, cliente o CUIT...");
-        searchField.setPrefWidth(350);
-        searchField.setStyle("-fx-font-size: 14px; -fx-padding: 8;");
-        searchField.textProperty().addListener((obs, old, newValue) -> filtrarRemitos());
-        
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
+        searchField.setPromptText("Número, cliente o CUIT...");
+        searchField.setPrefWidth(300);
+        searchField.textProperty().addListener((obs, oldVal, newVal) -> filtrarRemitos(newVal));
         
         Button btnRefrescar = new Button("🔄 Refrescar");
-        btnRefrescar.setStyle("-fx-font-size: 13px; -fx-padding: 8 15;");
+        btnRefrescar.setStyle(
+            "-fx-background-color: #8b5cf6; " +
+            "-fx-text-fill: white; " +
+            "-fx-font-size: 13px; " +
+            "-fx-padding: 8 15; " +
+            "-fx-cursor: hand;"
+        );
         btnRefrescar.setOnAction(e -> cargarRemitos());
         
-        toolbar.getChildren().addAll(searchField, spacer, btnRefrescar);
-        container.getChildren().add(toolbar);
-        
-        return container;
+        searchBar.getChildren().addAll(lblBuscar, searchField, btnRefrescar);
+        return searchBar;
     }
     
     private HBox createStats() {
         HBox stats = new HBox(20);
         stats.setAlignment(Pos.CENTER);
+        stats.setPadding(new Insets(10));
         
         VBox stat1 = createStatBox("📄", "Total Remitos", "0", "#8b5cf6");
-        totalRemitosLabel = (Label) ((VBox) stat1.getChildren().get(0)).getChildren().get(2);
+        lblTotalRemitos = (Label) ((VBox) stat1.getChildren().get(0)).getChildren().get(2);
         
         VBox stat2 = createStatBox("💰", "Facturación Total", "$0", "#10b981");
-        totalFacturacionLabel = (Label) ((VBox) stat2.getChildren().get(0)).getChildren().get(2);
+        lblFacturacionTotal = (Label) ((VBox) stat2.getChildren().get(0)).getChildren().get(2);
         
         stats.getChildren().addAll(stat1, stat2);
         return stats;
@@ -167,39 +169,36 @@ public class ListaRemitosView extends VBox {
     
     private VBox createTable() {
         VBox container = new VBox(10);
+        container.setPadding(new Insets(10));
+        container.setStyle("-fx-background-color: white; -fx-background-radius: 10;");
+        VBox.setVgrow(container, Priority.ALWAYS);
+        
+        Label titulo = new Label("Remitos Guardados");
+        titulo.setFont(Font.font("System", FontWeight.BOLD, 16));
+        titulo.setPadding(new Insets(10));
         
         tablaRemitos = new TableView<>();
-        tablaRemitos.setStyle("-fx-background-color: white; -fx-background-radius: 10;");
-        tablaRemitos.setPrefHeight(400);
+        VBox.setVgrow(tablaRemitos, Priority.ALWAYS);
         
-        // Columna Número
         TableColumn<RemitoDAO.RemitoResumen, String> colNumero = new TableColumn<>("Número");
         colNumero.setCellValueFactory(new PropertyValueFactory<>("numero"));
-        colNumero.setPrefWidth(120);
-        colNumero.setStyle("-fx-alignment: CENTER;");
+        colNumero.setPrefWidth(100);
         
-        // Columna Fecha (String, ya formateada desde la BD)
         TableColumn<RemitoDAO.RemitoResumen, String> colFecha = new TableColumn<>("Fecha");
         colFecha.setCellValueFactory(new PropertyValueFactory<>("fecha"));
-        colFecha.setPrefWidth(100);
-        colFecha.setStyle("-fx-alignment: CENTER;");
+        colFecha.setPrefWidth(120);
         
-        // Columna Cliente
         TableColumn<RemitoDAO.RemitoResumen, String> colCliente = new TableColumn<>("Cliente");
         colCliente.setCellValueFactory(new PropertyValueFactory<>("clienteNombre"));
         colCliente.setPrefWidth(250);
         
-        // Columna CUIT
-        TableColumn<RemitoDAO.RemitoResumen, String> colCuit = new TableColumn<>("CUIT");
-        colCuit.setCellValueFactory(new PropertyValueFactory<>("clienteCUIT"));
-        colCuit.setPrefWidth(130);
-        colCuit.setStyle("-fx-alignment: CENTER;");
+        TableColumn<RemitoDAO.RemitoResumen, String> colCUIT = new TableColumn<>("CUIT");
+        colCUIT.setCellValueFactory(new PropertyValueFactory<>("clienteCUIT"));
+        colCUIT.setPrefWidth(150);
         
-        // Columna Total
         TableColumn<RemitoDAO.RemitoResumen, Double> colTotal = new TableColumn<>("Total");
         colTotal.setCellValueFactory(new PropertyValueFactory<>("total"));
         colTotal.setPrefWidth(150);
-        colTotal.setStyle("-fx-alignment: CENTER-RIGHT;");
         colTotal.setCellFactory(column -> new TableCell<>() {
             @Override
             protected void updateItem(Double value, boolean empty) {
@@ -213,20 +212,19 @@ public class ListaRemitosView extends VBox {
             }
         });
         
-        // Columna Acciones
         TableColumn<RemitoDAO.RemitoResumen, Void> colAcciones = new TableColumn<>("Acciones");
         colAcciones.setPrefWidth(200);
         colAcciones.setCellFactory(column -> new TableCell<>() {
-            private final Button btnVer = new Button("👁️ Ver");
+            private final Button btnVerPDF = new Button("📄 Ver PDF");
             private final Button btnEliminar = new Button("🗑️");
             
             {
-                btnVer.setStyle("-fx-background-color: #3b82f6; -fx-text-fill: white; -fx-font-size: 11px; -fx-padding: 5 10;");
-                btnEliminar.setStyle("-fx-background-color: #ef4444; -fx-text-fill: white; -fx-font-size: 11px; -fx-padding: 5 10;");
+                btnVerPDF.setStyle("-fx-background-color: #3b82f6; -fx-text-fill: white; -fx-font-size: 11px; -fx-padding: 5 10; -fx-cursor: hand;");
+                btnEliminar.setStyle("-fx-background-color: #ef4444; -fx-text-fill: white; -fx-font-size: 11px; -fx-padding: 5 10; -fx-cursor: hand;");
                 
-                btnVer.setOnAction(e -> {
+                btnVerPDF.setOnAction(e -> {
                     RemitoDAO.RemitoResumen remito = getTableView().getItems().get(getIndex());
-                    verPDF(remito);
+                    abrirPDF(remito);
                 });
                 
                 btnEliminar.setOnAction(e -> {
@@ -241,150 +239,159 @@ public class ListaRemitosView extends VBox {
                 if (empty) {
                     setGraphic(null);
                 } else {
-                    HBox buttons = new HBox(8);
+                    HBox buttons = new HBox(5, btnVerPDF, btnEliminar);
                     buttons.setAlignment(Pos.CENTER);
-                    buttons.getChildren().addAll(btnVer, btnEliminar);
                     setGraphic(buttons);
                 }
             }
         });
         
-        tablaRemitos.getColumns().addAll(colNumero, colFecha, colCliente, colCuit, colTotal, colAcciones);
-        container.getChildren().add(tablaRemitos);
+        tablaRemitos.getColumns().addAll(colNumero, colFecha, colCliente, colCUIT, colTotal, colAcciones);
         
+        container.getChildren().addAll(titulo, tablaRemitos);
         return container;
     }
     
     private void cargarRemitos() {
         try {
             List<RemitoDAO.RemitoResumen> remitos = RemitoDAO.obtenerTodosLosRemitos();
-            todosLosRemitos = FXCollections.observableArrayList(remitos);
-            tablaRemitos.setItems(todosLosRemitos);
+            ObservableList<RemitoDAO.RemitoResumen> items = FXCollections.observableArrayList(remitos);
+            tablaRemitos.setItems(items);
             
             // Actualizar estadísticas
-            totalRemitosLabel.setText(String.valueOf(remitos.size()));
+            lblTotalRemitos.setText(String.valueOf(remitos.size()));
             
-            double totalFacturacion = remitos.stream()
-                .mapToDouble(RemitoDAO.RemitoResumen::getTotal)
-                .sum();
-            totalFacturacionLabel.setText(currencyFormatter.format(totalFacturacion));
+            double total = remitos.stream().mapToDouble(RemitoDAO.RemitoResumen::getTotal).sum();
+            lblFacturacionTotal.setText(currencyFormatter.format(total));
             
-            System.out.println("✅ Remitos cargados: " + remitos.size());
+            System.out.println("✅ Cargados " + remitos.size() + " remitos");
             
         } catch (Exception e) {
             System.err.println("❌ Error al cargar remitos: " + e.getMessage());
             e.printStackTrace();
-            
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Error");
-            alert.setContentText("No se pudieron cargar los remitos: " + e.getMessage());
-            alert.showAndWait();
+            mostrarAlerta(Alert.AlertType.ERROR, "Error", "No se pudieron cargar los remitos.");
         }
     }
     
-    private void filtrarRemitos() {
-        String textoBusqueda = searchField.getText();
-        
-        if (textoBusqueda == null || textoBusqueda.trim().isEmpty()) {
-            tablaRemitos.setItems(todosLosRemitos);
+    private void filtrarRemitos(String filtro) {
+        if (filtro == null || filtro.trim().isEmpty()) {
+            cargarRemitos();
             return;
         }
         
-        String filtroLower = textoBusqueda.toLowerCase();
-        ObservableList<RemitoDAO.RemitoResumen> filtrados = todosLosRemitos.filtered(remito ->
-            remito.getNumero().toLowerCase().contains(filtroLower) ||
-            remito.getClienteNombre().toLowerCase().contains(filtroLower) ||
-            remito.getClienteCUIT().toLowerCase().contains(filtroLower)
-        );
-        
-        tablaRemitos.setItems(filtrados);
+        try {
+            List<RemitoDAO.RemitoResumen> todosLosRemitos = RemitoDAO.obtenerTodosLosRemitos();
+            String filtroLower = filtro.toLowerCase();
+            
+            List<RemitoDAO.RemitoResumen> filtrados = todosLosRemitos.stream()
+                .filter(r -> 
+                    r.getNumero().toLowerCase().contains(filtroLower) ||
+                    r.getClienteNombre().toLowerCase().contains(filtroLower) ||
+                    r.getClienteCUIT().toLowerCase().contains(filtroLower)
+                )
+                .toList();
+            
+            ObservableList<RemitoDAO.RemitoResumen> items = FXCollections.observableArrayList(filtrados);
+            tablaRemitos.setItems(items);
+            
+            lblTotalRemitos.setText(String.valueOf(filtrados.size()));
+            double total = filtrados.stream().mapToDouble(RemitoDAO.RemitoResumen::getTotal).sum();
+            lblFacturacionTotal.setText(currencyFormatter.format(total));
+            
+        } catch (Exception e) {
+            System.err.println("❌ Error al filtrar remitos: " + e.getMessage());
+        }
     }
     
-    private void verPDF(RemitoDAO.RemitoResumen remito) {
+    private void abrirPDF(RemitoDAO.RemitoResumen remito) {
         try {
             String rutaPDF = remito.getRutaPDF();
+            File file = new File(rutaPDF);
             
-            if (rutaPDF == null || rutaPDF.isEmpty()) {
-                Alert alert = new Alert(Alert.AlertType.WARNING);
-                alert.setTitle("PDF no encontrado");
-                alert.setContentText("Este remito no tiene un PDF asociado.");
-                alert.showAndWait();
+            if (!file.exists()) {
+                mostrarAlerta(Alert.AlertType.WARNING, "Archivo no encontrado", 
+                    "El archivo PDF no existe en la ruta:\n" + rutaPDF);
                 return;
             }
             
-            File pdfFile = new File(rutaPDF);
-            
-            if (!pdfFile.exists()) {
-                Alert alert = new Alert(Alert.AlertType.WARNING);
-                alert.setTitle("PDF no encontrado");
-                alert.setContentText("El archivo PDF no existe en la ruta: " + rutaPDF);
-                alert.showAndWait();
-                return;
-            }
-            
-            // Abrir el PDF con la aplicación predeterminada
             if (Desktop.isDesktopSupported()) {
-                Desktop.getDesktop().open(pdfFile);
-                System.out.println("✅ PDF abierto: " + rutaPDF);
+                Desktop.getDesktop().open(file);
+                System.out.println("✅ Abriendo PDF: " + rutaPDF);
             } else {
-                Alert alert = new Alert(Alert.AlertType.WARNING);
-                alert.setTitle("No se puede abrir");
-                alert.setContentText("No se puede abrir el PDF automáticamente.\nRuta: " + rutaPDF);
-                alert.showAndWait();
+                mostrarAlerta(Alert.AlertType.ERROR, "Error", "No se puede abrir el PDF en este sistema.");
             }
             
         } catch (Exception e) {
             System.err.println("❌ Error al abrir PDF: " + e.getMessage());
             e.printStackTrace();
-            
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Error");
-            alert.setContentText("No se pudo abrir el PDF: " + e.getMessage());
-            alert.showAndWait();
+            mostrarAlerta(Alert.AlertType.ERROR, "Error", "No se pudo abrir el archivo PDF.");
         }
     }
     
     private void eliminarRemito(RemitoDAO.RemitoResumen remito) {
-        Alert confirmacion = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmacion.setTitle("Confirmar eliminación");
-        confirmacion.setHeaderText("¿Eliminar remito " + remito.getNumero() + "?");
-        confirmacion.setContentText(
-            "Cliente: " + remito.getClienteNombre() + "\n" +
-            "Total: " + currencyFormatter.format(remito.getTotal()) + "\n\n" +
-            "Esta acción no se puede deshacer."
-        );
-        
-        confirmacion.showAndWait().ifPresent(response -> {
-            if (response == ButtonType.OK) {
+        if (mostrarConfirmacion("Confirmar eliminación", 
+            "¿Estás seguro de eliminar el remito N° " + remito.getNumero() + "?\n\nEsta acción no se puede deshacer.")) {
+            
+            try {
+                // Usar el ID en vez del número
                 boolean eliminado = RemitoDAO.eliminarRemito(remito.getId());
                 
                 if (eliminado) {
-                    // Eliminar también el archivo PDF
-                    try {
-                        if (remito.getRutaPDF() != null && !remito.getRutaPDF().isEmpty()) {
-                            File pdfFile = new File(remito.getRutaPDF());
-                            if (pdfFile.exists()) {
-                                pdfFile.delete();
-                                System.out.println("✅ PDF eliminado: " + remito.getRutaPDF());
-                            }
-                        }
-                    } catch (Exception e) {
-                        System.err.println("⚠️ No se pudo eliminar el PDF: " + e.getMessage());
-                    }
-                    
-                    Alert success = new Alert(Alert.AlertType.INFORMATION);
-                    success.setTitle("Remito eliminado");
-                    success.setContentText("El remito se eliminó correctamente.");
-                    success.showAndWait();
-                    
+                    System.out.println("✅ Remito eliminado: " + remito.getNumero() + " (ID: " + remito.getId() + ")");
                     cargarRemitos();
+                    mostrarAlerta(Alert.AlertType.INFORMATION, "Remito eliminado", 
+                        "El remito N° " + remito.getNumero() + " fue eliminado correctamente.");
                 } else {
-                    Alert error = new Alert(Alert.AlertType.ERROR);
-                    error.setTitle("Error");
-                    error.setContentText("No se pudo eliminar el remito.");
-                    error.showAndWait();
+                    mostrarAlerta(Alert.AlertType.ERROR, "Error", "No se pudo eliminar el remito.");
                 }
+                
+            } catch (Exception e) {
+                System.err.println("❌ Error al eliminar remito: " + e.getMessage());
+                e.printStackTrace();
+                mostrarAlerta(Alert.AlertType.ERROR, "Error", "Ocurrió un error al eliminar el remito.");
             }
-        });
+        }
+    }
+    
+    /**
+     * Muestra un Alert correctamente vinculado al Stage principal
+     * para evitar problemas en pantalla completa
+     */
+    private void mostrarAlerta(Alert.AlertType tipo, String titulo, String contenido) {
+        Alert alert = new Alert(tipo);
+        alert.setTitle(titulo);
+        alert.setHeaderText(null);
+        alert.setContentText(contenido);
+        
+        // Vincular al Stage principal para evitar minimización
+        try {
+            Stage owner = NavigationManager.getInstance().getPrimaryStage();
+            if (owner != null) {
+                alert.initOwner(owner);
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ No se pudo vincular Alert al Stage principal");
+        }
+        
+        alert.showAndWait();
+    }
+    
+    private boolean mostrarConfirmacion(String titulo, String contenido) {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle(titulo);
+        alert.setHeaderText(null);
+        alert.setContentText(contenido);
+        
+        // Vincular al Stage principal
+        try {
+            Stage owner = NavigationManager.getInstance().getPrimaryStage();
+            if (owner != null) {
+                alert.initOwner(owner);
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ No se pudo vincular Alert al Stage principal");
+        }
+        
+        return alert.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK;
     }
 }
