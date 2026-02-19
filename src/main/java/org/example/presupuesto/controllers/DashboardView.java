@@ -1,8 +1,12 @@
 package org.example.presupuesto.controllers;
 
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.*;
@@ -69,7 +73,44 @@ public class DashboardView extends VBox {
         VBox titleBox = new VBox(5);
         titleBox.getChildren().addAll(title, subtitle);
 
-        header.getChildren().add(titleBox);
+        // Spacer para empujar el botón a la derecha
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        // Botón Salir
+        Button btnSalir = new Button("🚪 Salir");
+        btnSalir.setStyle(
+            "-fx-background-color: #ef4444; " +
+            "-fx-text-fill: white; " +
+            "-fx-font-size: 14px; " +
+            "-fx-font-weight: bold; " +
+            "-fx-padding: 10 20; " +
+            "-fx-cursor: hand; " +
+            "-fx-background-radius: 5;"
+        );
+        btnSalir.setOnAction(e -> salirAplicacion());
+
+        btnSalir.setOnMouseEntered(e -> btnSalir.setStyle(
+            "-fx-background-color: #dc2626; " +
+            "-fx-text-fill: white; " +
+            "-fx-font-size: 14px; " +
+            "-fx-font-weight: bold; " +
+            "-fx-padding: 10 20; " +
+            "-fx-cursor: hand; " +
+            "-fx-background-radius: 5;"
+        ));
+
+        btnSalir.setOnMouseExited(e -> btnSalir.setStyle(
+            "-fx-background-color: #ef4444; " +
+            "-fx-text-fill: white; " +
+            "-fx-font-size: 14px; " +
+            "-fx-font-weight: bold; " +
+            "-fx-padding: 10 20; " +
+            "-fx-cursor: hand; " +
+            "-fx-background-radius: 5;"
+        ));
+
+        header.getChildren().addAll(titleBox, spacer, btnSalir);
         return header;
     }
 
@@ -335,5 +376,37 @@ public class DashboardView extends VBox {
     private void verFacturacionMensual() {
         FacturacionMensualView facturacionView = new FacturacionMensualView();
         NavigationManager.getInstance().navigateTo(facturacionView);
+    }
+
+    /**
+     * Método para salir de la aplicación con confirmación
+     */
+    private void salirAplicacion() {
+        if (mostrarConfirmacion("Salir", "¿Estás seguro que deseas salir de la aplicación?")) {
+            System.out.println("👋 Cerrando DICOR Sistema de Gestión...");
+            Platform.exit();
+            System.exit(0);
+        }
+    }
+
+    /**
+     * Muestra un Alert de confirmación vinculado al Stage principal
+     */
+    private boolean mostrarConfirmacion(String titulo, String contenido) {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle(titulo);
+        alert.setHeaderText(null);
+        alert.setContentText(contenido);
+        
+        try {
+            Stage owner = NavigationManager.getInstance().getPrimaryStage();
+            if (owner != null) {
+                alert.initOwner(owner);
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ No se pudo vincular Alert al Stage principal");
+        }
+        
+        return alert.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK;
     }
 }
