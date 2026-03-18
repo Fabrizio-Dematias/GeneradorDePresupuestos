@@ -36,3 +36,13 @@ build/
 
 ### Mac OS ###
 .DS_Store
+# Base de datos SQLite
+dicor.db
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Backups
+backups/
+*.backup
