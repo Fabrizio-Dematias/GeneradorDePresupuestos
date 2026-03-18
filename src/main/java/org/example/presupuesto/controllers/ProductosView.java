@@ -113,7 +113,7 @@ public class ProductosView extends VBox {
         lblCategoria.setFont(Font.font("System", FontWeight.BOLD, 14));
         
         comboCategoria = new ComboBox<>();
-        comboCategoria.getItems().addAll("TODAS", "CARBONES", "INTERRUPTORES", "REPUESTOS VARIOS", "RULEMANES Y CUBETAS");
+        comboCategoria.getItems().addAll("TODAS", "CARBONES", "CAPACITORES", "INTERRUPTORES", "REPUESTOS VARIOS", "RULEMANES Y CUBETAS");
         comboCategoria.setValue("TODAS");
         comboCategoria.setOnAction(e -> filtrarProductos());
         
@@ -288,7 +288,7 @@ public class ProductosView extends VBox {
         txtDescripcion.setPromptText("Descripción");
         
         ComboBox<String> comboCategoria = new ComboBox<>();
-        comboCategoria.getItems().addAll("CARBONES", "INTERRUPTORES", "REPUESTOS VARIOS", "RULEMANES Y CUBETAS");
+        comboCategoria.getItems().addAll("CARBONES", "CAPACITORES", "INTERRUPTORES", "REPUESTOS VARIOS", "RULEMANES Y CUBETAS");
         comboCategoria.setValue("CARBONES");
         
         TextField txtPrecio = new TextField();
@@ -432,7 +432,7 @@ public class ProductosView extends VBox {
         grid.setPadding(new Insets(20));
         
         ComboBox<String> comboCategoria = new ComboBox<>();
-        comboCategoria.getItems().addAll("TODAS", "CARBONES", "INTERRUPTORES", "REPUESTOS VARIOS", "RULEMANES Y CUBETAS");
+        comboCategoria.getItems().addAll("TODAS", "CARBONES", "CAPACITORES", "INTERRUPTORES", "REPUESTOS VARIOS", "RULEMANES Y CUBETAS");
         comboCategoria.setValue("TODAS");
         
         TextField txtPorcentaje = new TextField();
