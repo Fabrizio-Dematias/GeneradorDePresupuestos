@@ -53,22 +53,6 @@ DICOR es un sistema de gestión empresarial desarrollado en JavaFX que permite a
 
 ---
 
-## 🖼️ Capturas de Pantalla
-
-### Dashboard Principal
-Vista general con acceso a todos los módulos del sistema.
-
-### Nuevo Remito
-Formulario intuitivo con autocompletado de productos y generación de PDF.
-
-### Gestión de Productos
-Tabla completa con opciones de búsqueda, filtrado y actualización masiva.
-
-### Reportes
-Gráficos estadísticos de productos más vendidos y facturación mensual.
-
----
-
 ## 🚀 Instalación
 
 ### Requisitos Previos
