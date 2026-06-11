@@ -52,11 +52,20 @@ public class DatabaseManager {
                     codigo TEXT UNIQUE,
                     descripcion TEXT NOT NULL,
                     precio_unitario REAL NOT NULL,
-                    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    categoria TEXT DEFAULT 'CARBONES'
                 )
             """;
             stmt.execute(createProductos);
             System.out.println("✅ Tabla 'productos' verificada");
+
+            // Si la base es vieja y no tiene la columna categoria, se agrega
+            try {
+                stmt.execute("ALTER TABLE productos ADD COLUMN categoria TEXT DEFAULT 'CARBONES'");
+                System.out.println("✅ Columna 'categoria' agregada a productos");
+            } catch (SQLException e) {
+                // La columna ya existe: no hay nada que hacer
+            }
             
             // Tabla de Remitos
             String createRemitos = """
@@ -94,7 +103,24 @@ public class DatabaseManager {
             """;
             stmt.execute(createRemitoItems);
             System.out.println("✅ Tabla 'remito_items' verificada");
-            
+
+            // Tabla de Historial de Precios
+            // (antes nunca se creaba y el módulo "Historial de precios" fallaba)
+            String createHistorialPrecios = """
+                CREATE TABLE IF NOT EXISTS historial_precios (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    producto_codigo TEXT NOT NULL,
+                    producto_descripcion TEXT,
+                    precio_anterior REAL NOT NULL,
+                    precio_nuevo REAL NOT NULL,
+                    porcentaje_cambio REAL,
+                    categoria TEXT,
+                    fecha_cambio TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """;
+            stmt.execute(createHistorialPrecios);
+            System.out.println("✅ Tabla 'historial_precios' verificada");
+
             System.out.println("🎉 Base de datos inicializada correctamente");
             
         } catch (SQLException e) {

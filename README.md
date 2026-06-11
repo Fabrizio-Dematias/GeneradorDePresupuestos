@@ -2,20 +2,34 @@
 
 <div align="center">
 
+![React](https://img.shields.io/badge/React-18-blue?style=for-the-badge&logo=react)
+![Supabase](https://img.shields.io/badge/Supabase-Postgres-3ECF8E?style=for-the-badge&logo=supabase)
 ![Java](https://img.shields.io/badge/Java-17-orange?style=for-the-badge&logo=java)
-![JavaFX](https://img.shields.io/badge/JavaFX-21.0.2-blue?style=for-the-badge&logo=java)
-![Maven](https://img.shields.io/badge/Maven-3.9.12-red?style=for-the-badge&logo=apachemaven)
 ![SQLite](https://img.shields.io/badge/SQLite-3-green?style=for-the-badge&logo=sqlite)
 
 **Sistema completo de gestión de remitos y productos para DICOR Carbones y Repuestos**
-
-[Características](#-características) • [Instalación](#-instalación) • [Uso](#-uso) • [Tecnologías](#-tecnologías)
 
 </div>
 
 ---
 
-## 🎯 Descripción
+## 🌐 Versión Web (recomendada)
+
+El sistema fue migrado a la web para poder usarlo **desde cualquier dispositivo**
+(computadora, tablet o celular), sin depender de tenerlo instalado en una máquina:
+
+- 📂 Código en [`web/`](web/)
+- 🗄️ Base de datos en la nube con **Supabase** (gratis), mismas tablas y datos que el escritorio
+- 🔐 Acceso con usuario y contraseña (los datos no son públicos)
+- 🚀 **Guía de instalación paso a paso en [`web/README.md`](web/README.md)** (Supabase + Vercel, ~15 min)
+- 🧾 Genera los mismos PDFs de remito que la versión de escritorio
+- ✅ Historial de precios arreglado y funcionando (registra cambios masivos e individuales)
+
+La versión de escritorio (JavaFX) sigue funcionando y se documenta a continuación.
+
+---
+
+## 🎯 Descripción (versión de escritorio)
 
 DICOR es un sistema de gestión empresarial desarrollado en JavaFX que permite administrar productos, generar remitos profesionales en PDF, llevar control de precios y obtener reportes estadísticos de facturación.
 
