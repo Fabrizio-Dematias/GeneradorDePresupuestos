@@ -1,331 +1,152 @@
-# 📦 DICOR - Sistema de Gestión
+# DICOR - Sistema de Gestión
 
-<div align="center">
+![React](https://img.shields.io/badge/React-18-blue?style=flat-square&logo=react)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=flat-square&logo=typescript)
+![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?style=flat-square&logo=supabase)
+![Vercel](https://img.shields.io/badge/Deploy-Vercel-black?style=flat-square&logo=vercel)
 
-![React](https://img.shields.io/badge/React-18-blue?style=for-the-badge&logo=react)
-![Supabase](https://img.shields.io/badge/Supabase-Postgres-3ECF8E?style=for-the-badge&logo=supabase)
-![Java](https://img.shields.io/badge/Java-17-orange?style=for-the-badge&logo=java)
-![SQLite](https://img.shields.io/badge/SQLite-3-green?style=for-the-badge&logo=sqlite)
-
-**Sistema completo de gestión de remitos y productos para DICOR Carbones y Repuestos**
-
-</div>
+Sistema de gestión de remitos y productos para **DICOR Carbones y Repuestos**. Funciona desde cualquier dispositivo (PC, tablet, celular) y usa Supabase como base de datos en la nube.
 
 ---
 
-## 🌐 Versión Web (recomendada)
+## Módulos
 
-El sistema fue migrado a la web para poder usarlo **desde cualquier dispositivo**
-(computadora, tablet o celular), sin depender de tenerlo instalado en una máquina:
-
-- 📂 Código en [`web/`](web/)
-- 🗄️ Base de datos en la nube con **Supabase** (gratis), mismas tablas y datos que el escritorio
-- 🔐 Acceso con usuario y contraseña (los datos no son públicos)
-- 🚀 **Guía de instalación paso a paso en [`web/README.md`](web/README.md)** (Supabase + Vercel, ~15 min)
-- 🧾 Genera los mismos PDFs de remito que la versión de escritorio
-- ✅ Historial de precios arreglado y funcionando (registra cambios masivos e individuales)
-
-La versión de escritorio (JavaFX) sigue funcionando y se documenta a continuación.
+| Módulo | Descripción |
+|---|---|
+| **Panel** | Estadísticas generales, gráfico de facturación mensual y últimos remitos |
+| **Nuevo remito** | Buscador de productos con autocompletado (por código o descripción), bonificaciones, numeración automática `0001-XXX` y descarga del PDF |
+| **Remitos** | Lista con búsqueda, detalle completo, re-descarga del PDF de cualquier remito y eliminación |
+| **Productos** | Alta/edición/baja, filtro por categoría, búsqueda y actualización masiva de precios con vista previa |
+| **Historial de precios** | Auditoría de todos los cambios (masivos e individuales) con filtros |
+| **Más vendidos** | Ranking por cantidad o facturación con períodos configurables |
+| **Facturación mensual** | Evolución mes a mes con totales, promedio y mejor mes |
 
 ---
 
-## 🎯 Descripción (versión de escritorio)
+## Stack
 
-DICOR es un sistema de gestión empresarial desarrollado en JavaFX que permite administrar productos, generar remitos profesionales en PDF, llevar control de precios y obtener reportes estadísticos de facturación.
-
-### ✨ Características Principales
-
-#### 📝 Gestión de Remitos
-- ✅ Creación de remitos con autocompletado de productos
-- ✅ Generación automática de PDFs profesionales
-- ✅ Numeración automática correlativa (formato: 0001-XXX)
-- ✅ Selección de condición IVA (4 opciones)
-- ✅ Condiciones de venta personalizables
-- ✅ Cálculo automático de totales con bonificaciones
-- ✅ Historial completo de remitos generados
-
-#### 📦 Gestión de Productos
-- ✅ CRUD completo (Crear, Leer, Actualizar, Eliminar)
-- ✅ Categorización por tipo (Carbones, Interruptores, Repuestos Varios)
-- ✅ Actualización masiva de precios por categoría
-- ✅ Búsqueda en tiempo real por código o descripción
-- ✅ Filtrado avanzado por categorías
-- ✅ Base de datos con 379+ productos precargados
-
-#### 📊 Reportes y Estadísticas
-- ✅ **Productos Más Vendidos**: Gráfico de barras con top productos
-- ✅ **Facturación Mensual**: Evolución temporal de ventas
-- ✅ **Historial de Precios**: Auditoría completa de cambios de precios
-- ✅ Dashboard con estadísticas en tiempo real
-
-#### 🎨 Interfaz de Usuario
-- ✅ Diseño moderno y profesional
-- ✅ Navegación fluida sin ventanas modales
-- ✅ Compatible con pantalla completa en macOS
-- ✅ Alertas y confirmaciones no intrusivas
-- ✅ Interfaz responsive y adaptable
+- **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS
+- **Base de datos y auth**: Supabase (PostgreSQL + Auth)
+- **PDF**: generado en el navegador (jsPDF), mismo formato que el sistema original
+- **Hosting**: Vercel
 
 ---
 
-## 🚀 Instalación
+## Puesta en marcha (una sola vez, ~15 minutos)
 
-### Requisitos Previos
+### 1. Crear el proyecto en Supabase
 
-- **Java JDK 17** o superior
-- **Maven 3.9+**
-- **macOS** / **Linux** / **Windows**
+1. Entrá a [supabase.com](https://supabase.com) y creá una cuenta.
+2. **New project** → nombre (ej: `dicor`), contraseña de base de datos y región **South America (São Paulo)**.
+3. Esperá 1-2 minutos a que el proyecto se cree.
 
-### Clonar el Repositorio
+### 2. Crear las tablas y cargar los datos
+
+1. En Supabase: **SQL Editor → New query**.
+2. Copiá y pegá todo el contenido de [`web/supabase/setup-completo.sql`](web/supabase/setup-completo.sql) → **Run**.
+
+Eso crea las tablas, la seguridad (Row Level Security) y carga el catálogo completo de productos y los remitos, todo en un solo paso.
+
+> Si preferís hacerlo en dos pasos, están los archivos separados:
+> `web/supabase/migration.sql` (estructura) y `web/supabase/seed.sql` (datos).
+
+### 3. Crear tu usuario
+
+1. En Supabase: **Authentication → Users → Add user → Create new user**.
+2. Email y contraseña que querés usar para entrar al sistema.
+3. Tildá **Auto Confirm User** y creá el usuario.
+
+Con ese email y contraseña entrás a la web. Nadie más puede ver los datos: todas las tablas están protegidas con Row Level Security y solo usuarios autenticados pueden acceder.
+
+### 4. Publicar en Vercel
+
+1. Entrá a [vercel.com](https://vercel.com) y logueate con tu cuenta de GitHub.
+2. **Add New → Project** → importá el repositorio `GeneradorDePresupuestos`.
+3. El `vercel.json` de la raíz ya deja todo listo, no hay que tocar la config de build.
+4. En **Environment Variables** agregá estas dos (los valores están en Supabase → **Settings → API**):
+
+   | Variable | Valor |
+   |---|---|
+   | `VITE_SUPABASE_URL` | `https://TU-PROYECTO.supabase.co` |
+   | `VITE_SUPABASE_ANON_KEY` | la clave `anon / public` |
+
+5. **Deploy**. En un minuto tenés la URL accesible desde cualquier dispositivo.
+
+---
+
+## Desarrollo local
+
 ```bash
-git clone https://github.com/tu-usuario/GeneradorDePresupuestos.git
-cd GeneradorDePresupuestos
+cd web
+cp .env.example .env   # completar con los datos de Supabase
+npm install
+npm run dev            # http://localhost:5173
 ```
 
-### Compilar el Proyecto
+### Previsualizar sin Supabase (datos de ejemplo)
+
 ```bash
-mvn clean compile
+cd web
+npx vite build -c vite.mock.config.ts
+npx vite preview --outDir dist-mock
 ```
 
-### Ejecutar la Aplicación
-```bash
-mvn javafx:run
-```
-
 ---
 
-## 📖 Uso
+## Estructura del proyecto
 
-### 1. Dashboard Principal
-
-Al iniciar la aplicación, verás el **Dashboard** con 6 módulos principales:
-
-- 📝 **Nuevo Remito**: Crear remitos y generar PDFs
-- 📋 **Lista de Remitos**: Ver, abrir y eliminar remitos guardados
-- 📦 **Productos**: Gestión completa de productos
-- 📜 **Historial de Precios**: Auditoría de cambios de precios
-- 📊 **Productos Más Vendidos**: Reportes con gráficos
-- 💰 **Facturación Mensual**: Evolución de ventas
-
-### 2. Crear un Nuevo Remito
-
-1. Click en **"📝 Nuevo Remito"**
-2. Completar datos del cliente (nombre, domicilio, CUIT)
-3. Seleccionar condición de IVA y condiciones de venta
-4. Agregar productos:
-   - Ingresar código del producto (autocompletado)
-   - Especificar cantidad
-   - Aplicar bonificación si corresponde
-5. Click en **"💾 Guardar como PDF"**
-6. El remito se guarda automáticamente en la base de datos
-
-### 3. Gestionar Productos
-
-1. Click en **"📦 Productos"**
-2. **Crear**: Click en "➕ Nuevo Producto"
-3. **Editar**: Click en ✏️ en la fila del producto
-4. **Eliminar**: Click en 🗑️ (con confirmación)
-5. **Búsqueda**: Escribir en el campo de búsqueda
-6. **Filtrar**: Seleccionar categoría en el combo
-7. **Actualizar Precios**: Click en "💲 Actualizar Precios" para aplicar aumentos masivos
-
-### 4. Ver Reportes
-
-- **Productos Más Vendidos**: Muestra gráfico de barras con los productos más demandados
-- **Facturación Mensual**: Presenta evolución de ventas mes a mes
-- **Historial de Precios**: Lista todos los cambios de precios realizados
-
----
-
-## 🛠️ Tecnologías
-
-### Backend
-- **Java 17**: Lenguaje de programación
-- **JavaFX 21.0.2**: Framework para interfaz gráfica
-- **SQLite**: Base de datos embebida
-- **Maven**: Gestión de dependencias
-
-### Bibliotecas Principales
-- **iText (OpenPDF)**: Generación de PDFs
-- **JFreeChart**: Gráficos estadísticos
-- **JDBC**: Conectividad con base de datos
-
-### Arquitectura
-- **Patrón MVC**: Separación de capas (Models, Views, Controllers)
-- **DAO Pattern**: Acceso a datos desacoplado
-- **Navigation Manager**: Navegación centralizada
-- **Single Window Architecture**: Una ventana principal con vistas dinámicas
-
----
-
-## 📁 Estructura del Proyecto
 ```
 GeneradorDePresupuestos/
-├── src/
-│   ├── main/
-│   │   ├── java/
-│   │   │   └── org/example/presupuesto/
-│   │   │       ├── controllers/          # Vistas de la aplicación
-│   │   │       │   ├── DashboardView.java
-│   │   │       │   ├── NuevoRemitoView.java
-│   │   │       │   ├── ListaRemitosView.java
-│   │   │       │   ├── ProductosView.java
-│   │   │       │   ├── HistorialPreciosView.java
-│   │   │       │   ├── ProductosMasVendidosView.java
-│   │   │       │   └── FacturacionMensualView.java
-│   │   │       ├── dao/                   # Acceso a datos
-│   │   │       │   ├── DatabaseManager.java
-│   │   │       │   ├── ProductoDAO.java
-│   │   │       │   └── RemitoDAO.java
-│   │   │       ├── models/                # Modelos de datos
-│   │   │       │   ├── Producto.java
-│   │   │       │   └── Remito.java
-│   │   │       ├── utils/                 # Utilidades
-│   │   │       │   └── NavigationManager.java
-│   │   │       └── Main.java              # Punto de entrada
-│   │   └── resources/
-│   │       ├── dicor.db                   # Base de datos SQLite
-│   │       └── logo.png                   # Logo de la empresa
-├── pom.xml                                # Configuración Maven
-└── README.md                              # Este archivo
+├── web/
+│   ├── src/
+│   │   ├── pages/          # Dashboard, NuevoRemito, Remitos, Productos, etc.
+│   │   ├── components/     # Layout, Toast, íconos, componentes UI
+│   │   ├── lib/            # Cliente Supabase, generación de PDF, logo, formateo
+│   │   ├── context/        # AuthContext (sesión de Supabase)
+│   │   └── types.ts        # Tipos TypeScript compartidos
+│   ├── supabase/
+│   │   ├── setup-completo.sql   # Setup completo en un solo paso (recomendado)
+│   │   ├── migration.sql        # Solo estructura de tablas
+│   │   └── seed.sql             # Solo datos (productos + remitos)
+│   ├── dev/
+│   │   └── mock-supabase.ts     # Cliente mock para demo sin Supabase
+│   ├── .env.example
+│   └── vite.mock.config.ts
+├── vercel.json
+└── README.md
 ```
 
 ---
 
-## 💾 Base de Datos
+## Base de datos
 
-### Esquema Principal
+Cinco tablas en Supabase (PostgreSQL):
 
-**Tabla: `productos`**
-```sql
-- id (INTEGER PRIMARY KEY)
-- codigo (TEXT UNIQUE)
-- descripcion (TEXT)
-- categoria (TEXT)
-- precio_unitario (REAL)
-```
-
-**Tabla: `remitos`**
-```sql
-- id (INTEGER PRIMARY KEY)
-- numero (TEXT UNIQUE)
-- fecha (TEXT)
-- cliente_nombre (TEXT)
-- cliente_domicilio (TEXT)
-- cliente_cuit (TEXT)
-- total (REAL)
-- ruta_pdf (TEXT)
-```
-
-**Tabla: `remitos_items`**
-```sql
-- id (INTEGER PRIMARY KEY)
-- remito_id (INTEGER)
-- producto_codigo (TEXT)
-- cantidad (INTEGER)
-- precio_unitario (REAL)
-- bonificacion (REAL)
-```
-
-**Tabla: `historial_precios`**
-```sql
-- id (INTEGER PRIMARY KEY)
-- producto_codigo (TEXT)
-- precio_anterior (REAL)
-- precio_nuevo (REAL)
-- fecha_cambio (TEXT)
-```
+| Tabla | Descripción |
+|---|---|
+| `productos` | Catálogo de productos con código, descripción, categoría y precio |
+| `remitos` | Encabezado de cada remito (número, fecha, cliente, condición IVA/venta, total) |
+| `remito_items` | Líneas de cada remito (producto, cantidad, precio, bonificación) |
+| `historial_precios` | Auditoría de todos los cambios de precio |
+| `clientes` | Datos de clientes (referencia; los remitos guardan los datos directamente) |
 
 ---
 
-## 🔧 Configuración
+## PDF de remito
 
-### Personalizar Logo
+El PDF mantiene el formato original: logo y datos del negocio, N° de remito y fecha, leyenda "DOCUMENTO NO VÁLIDO COMO FACTURA", datos del cliente con condición de IVA y venta, tabla de productos con bonificaciones, total y recuadro de observaciones.
 
-Reemplazar el archivo `src/main/resources/logo.png` con el logo de tu empresa (tamaño recomendado: 200x100px).
+Para cambiar los datos del negocio (dirección, CUIT, email), editá la constante `EMPRESA` en [`web/src/lib/pdf.ts`](web/src/lib/pdf.ts).
 
-### Datos de la Empresa
-
-Editar `NuevoRemitoView.java` líneas 640-645:
-```java
-datosNegocio.addCell(celdaTexto("TU EMPRESA", fontBold));
-datosNegocio.addCell(celdaTexto("de Tu Nombre", fontNormal));
-datosNegocio.addCell(celdaTexto("Dirección - Ciudad", fontNormal));
-datosNegocio.addCell(celdaTexto("email@tuempresa.com", fontNormal));
-```
-
-### Agregar Productos Iniciales
+Para cambiar el logo, reemplazá el contenido de [`web/src/lib/logo.ts`](web/src/lib/logo.ts) con el nuevo data URL:
 ```bash
-# Conectar a la base de datos
-sqlite3 src/main/resources/dicor.db
-
-# Insertar productos
-INSERT INTO productos (codigo, descripcion, categoria, precio_unitario) 
-VALUES ('TU-001', 'Tu Producto', 'CARBONES', 1500.00);
+base64 -w0 logo.png
 ```
 
 ---
 
-## 🐛 Solución de Problemas
+## Autor
 
-### Error: "No se puede encontrar JavaFX"
-```bash
-# Verificar que JavaFX esté instalado correctamente
-mvn clean install
-```
+**Fabrizio Dematias** — dicorcarbones@gmail.com — Córdoba, Argentina
 
-### Error: "Base de datos bloqueada"
-```bash
-# Cerrar todas las instancias de la aplicación
-# Reiniciar la aplicación
-```
-
-### Error: "PDF no se genera"
-```bash
-# Verificar permisos de escritura en el directorio destino
-# Verificar que el logo.png exista en resources/
-```
-
----
-
-## 🤝 Contribuciones
-
-Las contribuciones son bienvenidas. Por favor:
-
-1. Fork el proyecto
-2. Crear una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abrir un Pull Request
-
----
-
-## 📝 Licencia
-
-Este proyecto es de uso privado para **DICOR Carbones y Repuestos**.
-
----
-
-## 👤 Autor
-
-**Fabrizio Dematias**
-
-- Email: dicorcarbones@gmail.com
-- Ubicación: Córdoba, Argentina
-
----
-
-## 🙏 Agradecimientos
-
-- Desarrollado con ❤️ para DICOR
-- Powered by JavaFX y SQLite
-- Iconos: Emojis Unicode
-
----
-
-<div align="center">
-
-**DICOR Sistema de Gestión © 2026**
-
-[⬆ Volver arriba](#-dicor---sistema-de-gestión)
-
-</div>
+*DICOR Sistema de Gestión © 2026 — Uso privado*
