@@ -5,18 +5,18 @@
  */
 
 const productos = [
-  { id: 541, codigo: '401', descripcion: 'TAL modo P8020 /P5411 - Sierra Circular modo Ks81 O 6x8x16', precio_unitario: 1597.12, categoria: 'CARBONES', fecha_actualizacion: '2026-02-10T02:10:53' },
-  { id: 542, codigo: '402', descripcion: 'AM. 41/2" SEG 500-TAL 10 mm.Mod.BDI52/154 6,3x6,3x15', precio_unitario: 1014.93, categoria: 'CARBONES', fecha_actualizacion: '2026-02-10T02:10:53' },
-  { id: 538, codigo: '61001', descripcion: 'LAZO NUEVO 8x9x30', precio_unitario: 3953.48, categoria: 'CARBONES', fecha_actualizacion: '2026-02-10T02:10:53' },
-  { id: 539, codigo: '61002', descripcion: 'LAZO GRANDE 6x18x32', precio_unitario: 4735.49, categoria: 'CARBONES', fecha_actualizacion: '2026-02-10T02:10:53' },
-  { id: 700, codigo: '699', descripcion: 'CARBONES BOSCH GSB 13 RE', precio_unitario: 1200, categoria: 'CARBONES', fecha_actualizacion: '2026-03-01T10:00:00' },
-  { id: 801, codigo: '1031', descripcion: 'CUBETA Ø22 - 608 - 627', precio_unitario: 713.08, categoria: 'RULEMANES Y CUBETAS', fecha_actualizacion: '2026-02-20T10:00:00' },
-  { id: 802, codigo: '1032', descripcion: 'CUBETA Ø24 - 609', precio_unitario: 860.97, categoria: 'RULEMANES Y CUBETAS', fecha_actualizacion: '2026-02-20T10:00:00' },
-  { id: 803, codigo: '2001', descripcion: 'CAPACITOR 450V 25uF', precio_unitario: 5230.5, categoria: 'CAPACITORES', fecha_actualizacion: '2026-02-22T10:00:00' },
-  { id: 804, codigo: '2002', descripcion: 'CAPACITOR 450V 40uF', precio_unitario: 6890, categoria: 'CAPACITORES', fecha_actualizacion: '2026-02-22T10:00:00' },
-  { id: 805, codigo: '3001', descripcion: 'INTERRUPTOR AMOLADORA 5/8', precio_unitario: 3120.75, categoria: 'INTERRUPTORES', fecha_actualizacion: '2026-02-25T10:00:00' },
-  { id: 806, codigo: '4001', descripcion: 'PIÑÓN TALADRO 13mm', precio_unitario: 2480, categoria: 'REPUESTOS VARIOS', fecha_actualizacion: '2026-03-02T10:00:00' },
-  { id: 807, codigo: '4002', descripcion: 'MANDRIL 13mm C/LLAVE', precio_unitario: 8975.25, categoria: 'REPUESTOS VARIOS', fecha_actualizacion: '2026-03-02T10:00:00' },
+  { id: 541, codigo: '401', descripcion: 'TAL modo P8020 /P5411 - Sierra Circular modo Ks81 O 6x8x16', precio_unitario: 1597.12, categoria: 'CARBONES', stock: 8, stock_minimo: 10, fecha_actualizacion: '2026-02-10T02:10:53' },
+  { id: 542, codigo: '402', descripcion: 'AM. 41/2" SEG 500-TAL 10 mm.Mod.BDI52/154 6,3x6,3x15', precio_unitario: 1014.93, categoria: 'CARBONES', stock: 0, stock_minimo: 5, fecha_actualizacion: '2026-02-10T02:10:53' },
+  { id: 538, codigo: '61001', descripcion: 'LAZO NUEVO 8x9x30', precio_unitario: 3953.48, categoria: 'CARBONES', stock: 150, stock_minimo: 50, fecha_actualizacion: '2026-02-10T02:10:53' },
+  { id: 539, codigo: '61002', descripcion: 'LAZO GRANDE 6x18x32', precio_unitario: 4735.49, categoria: 'CARBONES', stock: 30, stock_minimo: 40, fecha_actualizacion: '2026-02-10T02:10:53' },
+  { id: 700, codigo: '699', descripcion: 'CARBONES BOSCH GSB 13 RE', precio_unitario: 1200, categoria: 'CARBONES', stock: 0, stock_minimo: 0, fecha_actualizacion: '2026-03-01T10:00:00' },
+  { id: 801, codigo: '1031', descripcion: 'CUBETA Ø22 - 608 - 627', precio_unitario: 713.08, categoria: 'RULEMANES Y CUBETAS', stock: 200, stock_minimo: 50, fecha_actualizacion: '2026-02-20T10:00:00' },
+  { id: 802, codigo: '1032', descripcion: 'CUBETA Ø24 - 609', precio_unitario: 860.97, categoria: 'RULEMANES Y CUBETAS', stock: 12, stock_minimo: 20, fecha_actualizacion: '2026-02-20T10:00:00' },
+  { id: 803, codigo: '2001', descripcion: 'CAPACITOR 450V 25uF', precio_unitario: 5230.5, categoria: 'CAPACITORES', stock: 45, stock_minimo: 10, fecha_actualizacion: '2026-02-22T10:00:00' },
+  { id: 804, codigo: '2002', descripcion: 'CAPACITOR 450V 40uF', precio_unitario: 6890, categoria: 'CAPACITORES', stock: 5, stock_minimo: 8, fecha_actualizacion: '2026-02-22T10:00:00' },
+  { id: 805, codigo: '3001', descripcion: 'INTERRUPTOR AMOLADORA 5/8', precio_unitario: 3120.75, categoria: 'INTERRUPTORES', stock: 0, stock_minimo: 3, fecha_actualizacion: '2026-02-25T10:00:00' },
+  { id: 806, codigo: '4001', descripcion: 'PIÑÓN TALADRO 13mm', precio_unitario: 2480, categoria: 'REPUESTOS VARIOS', stock: 60, stock_minimo: 15, fecha_actualizacion: '2026-03-02T10:00:00' },
+  { id: 807, codigo: '4002', descripcion: 'MANDRIL 13mm C/LLAVE', precio_unitario: 8975.25, categoria: 'REPUESTOS VARIOS', stock: 3, stock_minimo: 0, fecha_actualizacion: '2026-03-02T10:00:00' },
 ]
 
 const remitos = [
@@ -55,7 +55,20 @@ const historial_precios = [
   { id: 1, producto_codigo: '4002', producto_descripcion: 'MANDRIL 13mm C/LLAVE', precio_anterior: 8154.77, precio_nuevo: 8975.25, porcentaje_cambio: 10.06, categoria: 'REPUESTOS VARIOS', fecha_cambio: '2026-03-18T16:45:00' },
 ]
 
-const DB: Record<string, any[]> = { productos, remitos, remito_items, historial_precios }
+const movimientos_stock = [
+  { id: 10, producto_id: 538, producto_codigo: '61001', producto_descripcion: 'LAZO NUEVO 8x9x30', tipo: 'ingreso', cantidad: 300, stock_anterior: 50, stock_nuevo: 350, motivo: 'Compra a proveedor', remito_id: null, fecha: '2026-06-05T10:15:00' },
+  { id: 9, producto_id: 538, producto_codigo: '61001', producto_descripcion: 'LAZO NUEVO 8x9x30', tipo: 'egreso', cantidad: 200, stock_anterior: 350, stock_nuevo: 150, motivo: 'Venta · remito 0001-007', remito_id: 22, fecha: '2026-05-15T20:41:35' },
+  { id: 8, producto_id: 801, producto_codigo: '1031', producto_descripcion: 'CUBETA Ø22 - 608 - 627', tipo: 'ingreso', cantidad: 220, stock_anterior: 0, stock_nuevo: 220, motivo: 'Stock inicial', remito_id: null, fecha: '2026-05-02T09:00:00' },
+  { id: 7, producto_id: 801, producto_codigo: '1031', producto_descripcion: 'CUBETA Ø22 - 608 - 627', tipo: 'egreso', cantidad: 20, stock_anterior: 220, stock_nuevo: 200, motivo: 'Venta · remito 0001-008', remito_id: 23, fecha: '2026-06-08T22:21:22' },
+  { id: 6, producto_id: 542, producto_codigo: '402', producto_descripcion: 'AM. 41/2" SEG 500-TAL 10 mm', tipo: 'egreso', cantidad: 400, stock_anterior: 400, stock_nuevo: 0, motivo: 'Venta · remito 0001-003', remito_id: 7, fecha: '2026-02-10T15:42:37' },
+  { id: 5, producto_id: 804, producto_codigo: '2002', producto_descripcion: 'CAPACITOR 450V 40uF', tipo: 'ajuste', cantidad: 2, stock_anterior: 7, stock_nuevo: 5, motivo: 'Conteo de inventario', remito_id: null, fecha: '2026-05-28T17:30:00' },
+  { id: 4, producto_id: 806, producto_codigo: '4001', producto_descripcion: 'PIÑÓN TALADRO 13mm', tipo: 'ingreso', cantidad: 72, stock_anterior: 0, stock_nuevo: 72, motivo: 'Compra a proveedor', remito_id: null, fecha: '2026-04-20T11:00:00' },
+  { id: 3, producto_id: 806, producto_codigo: '4001', producto_descripcion: 'PIÑÓN TALADRO 13mm', tipo: 'egreso', cantidad: 12, stock_anterior: 72, stock_nuevo: 60, motivo: 'Venta · remito 0001-004', remito_id: 18, fecha: '2026-03-25T18:18:37' },
+  { id: 2, producto_id: 805, producto_codigo: '3001', producto_descripcion: 'INTERRUPTOR AMOLADORA 5/8', tipo: 'egreso', cantidad: 40, stock_anterior: 40, stock_nuevo: 0, motivo: 'Venta · remito 0001-002', remito_id: 6, fecha: '2026-02-10T15:15:21' },
+  { id: 1, producto_id: 541, producto_codigo: '401', producto_descripcion: 'TAL modo P8020 /P5411', tipo: 'ingreso', cantidad: 58, stock_anterior: 0, stock_nuevo: 58, motivo: 'Stock inicial', remito_id: null, fecha: '2026-02-01T08:30:00' },
+]
+
+const DB: Record<string, any[]> = { productos, remitos, remito_items, historial_precios, movimientos_stock }
 
 function crearBuilder(table: string) {
   const state = {

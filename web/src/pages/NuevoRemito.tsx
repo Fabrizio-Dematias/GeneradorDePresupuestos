@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { formatARS, hoyISO, proximoNumeroRemito, nombreArchivoRemito } from '../lib/format'
-import { Badge, Button, Card, Input, PageHeader } from '../components/ui'
+import { Badge, Button, Card, Input, PageHeader, StockPill } from '../components/ui'
 import { IconPlus, IconSearch, IconTrash } from '../components/icons'
 import { useToast } from '../components/Toast'
 import {
@@ -88,7 +88,14 @@ export default function NuevoRemito() {
       .order('codigo')
       .then(({ data, error }) => {
         if (error) toast('error', 'No se pudo cargar el catálogo de productos')
-        else setProductos((data as Producto[]) ?? [])
+        else
+          setProductos(
+            ((data as Producto[]) ?? []).map((p) => ({
+              ...p,
+              stock: p.stock ?? 0,
+              stock_minimo: p.stock_minimo ?? 0,
+            }))
+          )
       })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -366,8 +373,9 @@ export default function NuevoRemito() {
                             <span className="font-mono font-semibold text-brand-700">{p.codigo}</span>
                             <span className="ml-2 text-slate-700">{p.descripcion}</span>
                           </span>
-                          <span className="shrink-0 font-medium text-slate-500">
-                            {formatARS(p.precio_unitario)}
+                          <span className="flex shrink-0 items-center gap-2">
+                            <StockPill stock={p.stock} minimo={p.stock_minimo} />
+                            <span className="font-medium text-slate-500">{formatARS(p.precio_unitario)}</span>
                           </span>
                         </button>
                       </li>

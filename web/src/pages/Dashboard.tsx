@@ -3,15 +3,16 @@ import { Link } from 'react-router-dom'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts'
 import { supabase } from '../lib/supabase'
 import { formatARS, formatFecha, MESES } from '../lib/format'
-import { Badge, Card, EmptyState, LoadingState, PageHeader, StatCard } from '../components/ui'
+import { Badge, Card, EmptyState, LoadingState, PageHeader, StatCard, StockPill } from '../components/ui'
 import {
+  IconAlert,
   IconBanknotes,
   IconClock,
   IconCube,
   IconDocumentList,
   IconDocumentPlus,
 } from '../components/icons'
-import type { Remito } from '../types'
+import { estadoStock, type Producto, type Remito } from '../types'
 
 interface Stats {
   remitos: number
@@ -29,12 +30,13 @@ export default function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [ultimos, setUltimos] = useState<Remito[]>([])
   const [serieMensual, setSerieMensual] = useState<PuntoMensual[]>([])
+  const [reposicion, setReposicion] = useState<Producto[]>([])
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function cargar() {
       try {
-        const [remitosRes, productosRes, historialRes, ultimosRes] = await Promise.all([
+        const [remitosRes, productosRes, historialRes, ultimosRes, stockRes] = await Promise.all([
           supabase.from('remitos').select('fecha, total'),
           supabase.from('productos').select('id', { count: 'exact', head: true }),
           supabase.from('historial_precios').select('id', { count: 'exact', head: true }),
@@ -44,6 +46,7 @@ export default function Dashboard() {
             .order('fecha', { ascending: false })
             .order('numero', { ascending: false })
             .limit(5),
+          supabase.from('productos').select('codigo, descripcion, stock, stock_minimo'),
         ])
 
         const errores = [remitosRes.error, productosRes.error, historialRes.error, ultimosRes.error]
@@ -58,6 +61,16 @@ export default function Dashboard() {
           cambiosPrecio: historialRes.count ?? 0,
         })
         setUltimos((ultimosRes.data as Remito[]) ?? [])
+
+        // Productos que necesitan reposición (sin stock primero, después bajo el mínimo).
+        // stockRes puede fallar si todavía no se corrió migration_stock.sql: en ese caso se omite.
+        if (!stockRes.error) {
+          const prods = (stockRes.data as Producto[]) ?? []
+          const necesitan = prods
+            .filter((p) => estadoStock(p) !== 'ok')
+            .sort((a, b) => a.stock - b.stock)
+          setReposicion(necesitan)
+        }
 
         // Facturación de los últimos 6 meses calendario
         const porMes = new Map<string, number>()
@@ -140,6 +153,41 @@ export default function Dashboard() {
           tint="violet"
         />
       </div>
+
+      {reposicion.length > 0 && (
+        <Card
+          className="mt-6"
+          title={
+            <span className="flex items-center gap-2 text-amber-700">
+              <IconAlert className="h-5 w-5" />
+              Reposición pendiente · {reposicion.length}{' '}
+              {reposicion.length === 1 ? 'producto' : 'productos'}
+            </span>
+          }
+          actions={
+            <Link to="/stock" className="text-sm font-medium text-brand-700 hover:text-brand-800">
+              Ir a Stock →
+            </Link>
+          }
+        >
+          <ul className="divide-y divide-slate-100">
+            {reposicion.slice(0, 5).map((p) => (
+              <li key={p.codigo} className="flex items-center justify-between gap-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-slate-800">{p.descripcion}</p>
+                  <p className="font-mono text-xs text-slate-400">{p.codigo}</p>
+                </div>
+                <StockPill stock={p.stock} minimo={p.stock_minimo} />
+              </li>
+            ))}
+          </ul>
+          {reposicion.length > 5 && (
+            <p className="pt-3 text-center text-xs text-slate-500">
+              y {reposicion.length - 5} producto{reposicion.length - 5 === 1 ? '' : 's'} más
+            </p>
+          )}
+        </Card>
+      )}
 
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-5">
         <Card title="Facturación · últimos 6 meses" className="xl:col-span-3">

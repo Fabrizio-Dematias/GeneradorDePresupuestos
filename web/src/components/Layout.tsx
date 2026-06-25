@@ -3,6 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { LOGO_DATA_URL } from '../lib/logo'
 import {
+  IconArchiveBox,
   IconBanknotes,
   IconChartBar,
   IconClock,
@@ -20,6 +21,7 @@ const navegacion = [
   { to: '/remitos/nuevo', label: 'Nuevo remito', icon: IconDocumentPlus },
   { to: '/remitos', label: 'Remitos', icon: IconDocumentList, end: true },
   { to: '/productos', label: 'Productos', icon: IconCube },
+  { to: '/stock', label: 'Stock', icon: IconArchiveBox },
   { to: '/historial', label: 'Historial de precios', icon: IconClock },
   { to: '/reportes', label: 'Más vendidos', icon: IconChartBar },
   { to: '/facturacion', label: 'Facturación mensual', icon: IconBanknotes },

@@ -40,6 +40,13 @@ Funciona desde cualquier dispositivo (PC, tablet, celular) y usa
 > ```
 > (la base de la app de escritorio está en la carpeta desde donde la ejecutabas)
 
+> 📦 **¿Ya tenías el sistema funcionando y querés activar el control de stock?**
+> No hace falta rehacer nada: en **SQL Editor → New query** pegá y ejecutá el
+> contenido de [`supabase/migration_stock.sql`](supabase/migration_stock.sql).
+> Agrega el stock a tus productos (arranca en 0) sin tocar el resto de los datos.
+> Después, en la sección **Stock** de la web, cargá el stock inicial de cada
+> producto con un **Ingreso**; a partir de ahí los remitos lo descuentan solos.
+
 ### 3. Crear tu usuario
 
 1. En Supabase: **Authentication → Users → Add user → Create new user**.
@@ -97,7 +104,8 @@ npx vite preview --outDir dist-mock
 | **Panel** | Estadísticas generales, gráfico de facturación y últimos remitos |
 | **Nuevo remito** | Buscador de productos con autocompletado (por código o descripción), bonificaciones, numeración automática `0001-XXX` y descarga del PDF |
 | **Remitos** | Lista con búsqueda, detalle completo, **re-descarga del PDF** de cualquier remito y eliminación |
-| **Productos** | Alta/edición/baja, filtro por categoría, búsqueda y **actualización masiva de precios** con vista previa |
+| **Productos** | Alta/edición/baja, filtro por categoría, búsqueda, **stock** y **actualización masiva de precios** con vista previa |
+| **Stock / Inventario** | Control de stock con semáforo (verde/ámbar/rojo), valor del inventario, alerta de reposición, ingresos/egresos/ajustes y registro de **todos los movimientos**. El stock se descuenta solo al generar un remito |
 | **Historial de precios** | Auditoría de todos los cambios (masivos e individuales), con filtros — *en la app de escritorio este módulo no funcionaba* |
 | **Más vendidos** | Ranking por cantidad o facturación, con períodos configurables |
 | **Facturación mensual** | Evolución mes a mes con totales, promedio y mejor mes |
@@ -109,6 +117,8 @@ Mejoras respecto a la app de escritorio:
   desde la base de datos; ya no depende de un archivo guardado en una computadora).
 - El buscador de productos encuentra por **código o descripción** mientras escribís.
 - **Todos** los cambios de precio quedan en el historial (también los individuales).
+- **Control de stock**: el inventario se descuenta solo al emitir un remito, avisa
+  cuándo reponer y guarda cada entrada, salida y ajuste.
 - Los datos están en la nube con backup automático de Supabase.
 
 ## 🧾 Formato del PDF

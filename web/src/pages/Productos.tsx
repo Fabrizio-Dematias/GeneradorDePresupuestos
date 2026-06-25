@@ -12,6 +12,7 @@ import {
   Modal,
   PageHeader,
   Select,
+  StockPill,
   categoriaBadgeColor,
 } from '../components/ui'
 import { IconCube, IconPencil, IconPercent, IconPlus, IconSearch, IconTrash } from '../components/icons'
@@ -26,6 +27,9 @@ interface FormularioProducto {
   descripcion: string
   categoria: string
   precio: string
+  stockMinimo: string
+  stockInicial: string
+  stockActual: number
 }
 
 const formularioVacio: FormularioProducto = {
@@ -34,6 +38,9 @@ const formularioVacio: FormularioProducto = {
   descripcion: '',
   categoria: CATEGORIAS_BASE[0],
   precio: '',
+  stockMinimo: '0',
+  stockInicial: '0',
+  stockActual: 0,
 }
 
 export default function Productos() {
@@ -62,7 +69,15 @@ export default function Productos() {
   async function cargar() {
     const { data, error } = await supabase.from('productos').select('*').order('codigo')
     if (error) toast('error', 'No se pudieron cargar los productos')
-    setProductos((data as Producto[]) ?? [])
+    // Normaliza stock/stock_minimo por si la migración de stock todavía no corrió
+    // (así no se muestran NaN ni "undefined" hasta ejecutar migration_stock.sql).
+    setProductos(
+      ((data as Producto[]) ?? []).map((p) => ({
+        ...p,
+        stock: p.stock ?? 0,
+        stock_minimo: p.stock_minimo ?? 0,
+      }))
+    )
   }
 
   const categorias = useMemo(() => {
@@ -103,18 +118,35 @@ export default function Productos() {
       return
     }
 
+    const stockMinimo = Math.max(0, parseInt(form.stockMinimo, 10) || 0)
+    const stockInicial = Math.max(0, parseInt(form.stockInicial, 10) || 0)
+
     setGuardando(true)
     try {
       if (form.id === null) {
-        const { error } = await supabase.from('productos').insert({
-          codigo: form.codigo.trim(),
-          descripcion: form.descripcion.trim(),
-          categoria: form.categoria,
-          precio_unitario: precio,
-        })
+        const { data: nuevo, error } = await supabase
+          .from('productos')
+          .insert({
+            codigo: form.codigo.trim(),
+            descripcion: form.descripcion.trim(),
+            categoria: form.categoria,
+            precio_unitario: precio,
+            stock_minimo: stockMinimo,
+          })
+          .select()
+          .single()
         if (error) {
           if (error.code === '23505') throw new Error(`Ya existe un producto con el código ${form.codigo}`)
           throw error
+        }
+        // Carga el stock inicial como un movimiento de ingreso (queda en la auditoría)
+        if (nuevo && stockInicial > 0) {
+          await supabase.rpc('registrar_movimiento_stock', {
+            p_producto_id: (nuevo as Producto).id,
+            p_tipo: 'ingreso',
+            p_cantidad: stockInicial,
+            p_motivo: 'Stock inicial',
+          })
         }
         toast('success', `Producto ${form.codigo} creado.`)
       } else {
@@ -125,6 +157,7 @@ export default function Productos() {
             descripcion: form.descripcion.trim(),
             categoria: form.categoria,
             precio_unitario: precio,
+            stock_minimo: stockMinimo,
             fecha_actualizacion: new Date().toISOString(),
           })
           .eq('id', form.id)
@@ -265,6 +298,7 @@ export default function Productos() {
                     <th className="pb-3 pr-4 font-medium">Código</th>
                     <th className="pb-3 pr-4 font-medium">Descripción</th>
                     <th className="hidden pb-3 pr-4 font-medium sm:table-cell">Categoría</th>
+                    <th className="pb-3 pr-4 text-center font-medium">Stock</th>
                     <th className="pb-3 pr-4 text-right font-medium">Precio</th>
                     <th className="pb-3 text-right font-medium">Acciones</th>
                   </tr>
@@ -279,6 +313,9 @@ export default function Productos() {
                       <td className="hidden py-2.5 pr-4 sm:table-cell">
                         <Badge color={categoriaBadgeColor(p.categoria)}>{p.categoria}</Badge>
                       </td>
+                      <td className="py-2.5 pr-4 text-center">
+                        <StockPill stock={p.stock} minimo={p.stock_minimo} />
+                      </td>
                       <td className="py-2.5 pr-4 text-right font-semibold text-brand-700">
                         {formatARS(p.precio_unitario)}
                       </td>
@@ -292,6 +329,9 @@ export default function Productos() {
                                 descripcion: p.descripcion,
                                 categoria: p.categoria ?? CATEGORIAS_BASE[0],
                                 precio: String(p.precio_unitario),
+                                stockMinimo: String(p.stock_minimo),
+                                stockInicial: '0',
+                                stockActual: p.stock,
                               })
                             }
                             className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
@@ -398,11 +438,38 @@ export default function Productos() {
               onChange={(e) => setForm({ ...form, precio: e.target.value })}
               placeholder="0,00"
             />
-            {form.id !== null && (
-              <p className="self-end pb-2 text-xs text-slate-400">
-                Si cambiás el precio, el cambio queda en el historial.
-              </p>
+            <Input
+              label="Stock mínimo"
+              id="prod-stock-min"
+              type="number"
+              min={0}
+              value={form.stockMinimo}
+              onChange={(e) => setForm({ ...form, stockMinimo: e.target.value })}
+              placeholder="0"
+            />
+            {form.id === null ? (
+              <Input
+                label="Stock inicial"
+                id="prod-stock-ini"
+                type="number"
+                min={0}
+                value={form.stockInicial}
+                onChange={(e) => setForm({ ...form, stockInicial: e.target.value })}
+                placeholder="0"
+              />
+            ) : (
+              <div>
+                <span className="label">Stock actual</span>
+                <div className="input flex items-center bg-slate-50 font-semibold text-slate-700">
+                  {form.stockActual}
+                </div>
+              </div>
             )}
+            <p className="self-end pb-2 text-xs text-slate-400 sm:col-span-2">
+              {form.id === null
+                ? 'El stock se ajusta después desde la sección Stock. Avisamos cuando baje del mínimo.'
+                : 'Para cambiar el stock usá “Ajustar” en la sección Stock; así queda registrado el movimiento.'}
+            </p>
           </form>
         )}
       </Modal>

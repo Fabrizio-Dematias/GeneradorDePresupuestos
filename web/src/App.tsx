@@ -10,6 +10,7 @@ import Dashboard from './pages/Dashboard'
 import NuevoRemito from './pages/NuevoRemito'
 import Remitos from './pages/Remitos'
 import Productos from './pages/Productos'
+import Stock from './pages/Stock'
 import HistorialPrecios from './pages/HistorialPrecios'
 import Reportes from './pages/Reportes'
 import Facturacion from './pages/Facturacion'
@@ -53,6 +54,7 @@ export default function App() {
               <Route path="/remitos" element={<Remitos />} />
               <Route path="/remitos/nuevo" element={<NuevoRemito />} />
               <Route path="/productos" element={<Productos />} />
+              <Route path="/stock" element={<Stock />} />
               <Route path="/historial" element={<HistorialPrecios />} />
               <Route path="/reportes" element={<Reportes />} />
               <Route path="/facturacion" element={<Facturacion />} />

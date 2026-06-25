@@ -4,7 +4,25 @@ export interface Producto {
   descripcion: string
   precio_unitario: number
   categoria: string
+  stock: number
+  stock_minimo: number
   fecha_actualizacion: string | null
+}
+
+export type TipoMovimiento = 'ingreso' | 'egreso' | 'ajuste'
+
+export interface MovimientoStock {
+  id: number
+  producto_id: number | null
+  producto_codigo: string | null
+  producto_descripcion: string | null
+  tipo: TipoMovimiento
+  cantidad: number
+  stock_anterior: number
+  stock_nuevo: number
+  motivo: string | null
+  remito_id: number | null
+  fecha: string
 }
 
 export interface Remito {
@@ -70,3 +88,12 @@ export const CATEGORIAS_BASE = [
   'REPUESTOS VARIOS',
   'RULEMANES Y CUBETAS',
 ]
+
+/** Estado del stock de un producto, para el "semáforo" del inventario. */
+export type EstadoStock = 'sin' | 'bajo' | 'ok'
+
+export function estadoStock(p: Pick<Producto, 'stock' | 'stock_minimo'>): EstadoStock {
+  if (p.stock <= 0) return 'sin'
+  if (p.stock_minimo > 0 && p.stock <= p.stock_minimo) return 'bajo'
+  return 'ok'
+}

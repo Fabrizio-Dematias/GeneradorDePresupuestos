@@ -140,3 +140,27 @@ export const IconRefresh = (p: IconProps) => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
   </svg>
 )
+
+export const IconArchiveBox = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5 19.5 12m.75-4.5H3.75m16.5 0a1.5 1.5 0 0 0-1.5-1.5H5.25a1.5 1.5 0 0 0-1.5 1.5m16.5 0L19.5 12M3.75 7.5 4.5 12m0 0 .681 9.474a1.5 1.5 0 0 0 1.495 1.276h10.648a1.5 1.5 0 0 0 1.495-1.276L19.5 12m-15 0h15M9.75 15h4.5" />
+  </svg>
+)
+
+export const IconMinus = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14" />
+  </svg>
+)
+
+export const IconAdjustments = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
+  </svg>
+)
+
+export const IconArrowsUpDown = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5 7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5" />
+  </svg>
+)

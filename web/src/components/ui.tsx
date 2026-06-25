@@ -7,6 +7,7 @@ import {
   useEffect,
 } from 'react'
 import { IconAlert, IconX } from './icons'
+import { estadoStock } from '../types'
 
 // ---------------------------------------------------------------- Button
 type Variant = 'primary' | 'secondary' | 'danger' | 'warning' | 'ghost'
@@ -141,6 +142,26 @@ export function Badge({
   )
 }
 
+// ---------------------------------------------------------------- StockPill
+/** "Semáforo" de stock: verde (ok), ámbar (bajo el mínimo), rojo (sin stock). */
+export function StockPill({ stock, minimo }: { stock: number; minimo: number }) {
+  const estado = estadoStock({ stock, stock_minimo: minimo })
+  const styles = {
+    sin: 'bg-red-50 text-red-700 ring-red-600/20',
+    bajo: 'bg-amber-50 text-amber-700 ring-amber-600/20',
+    ok: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
+  }
+  const dot = { sin: 'bg-red-500', bajo: 'bg-amber-500', ok: 'bg-emerald-500' }
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${styles[estado]}`}
+    >
+      <span className={`h-1.5 w-1.5 rounded-full ${dot[estado]}`} />
+      {stock}
+    </span>
+  )
+}
+
 export function categoriaBadgeColor(categoria: string | null): keyof typeof badgeColors {
   switch (categoria) {
     case 'CARBONES':
@@ -227,17 +248,21 @@ export function StatCard({
   label,
   value,
   tint = 'brand',
+  hint,
 }: {
   icon: ReactNode
   label: string
   value: ReactNode
-  tint?: 'brand' | 'blue' | 'amber' | 'violet'
+  tint?: 'brand' | 'blue' | 'amber' | 'violet' | 'red' | 'emerald'
+  hint?: ReactNode
 }) {
   const tints = {
     brand: 'bg-brand-50 text-brand-700',
     blue: 'bg-blue-50 text-blue-600',
     amber: 'bg-amber-50 text-amber-600',
     violet: 'bg-violet-50 text-violet-600',
+    red: 'bg-red-50 text-red-600',
+    emerald: 'bg-emerald-50 text-emerald-600',
   }
   return (
     <div className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -249,7 +274,46 @@ export function StatCard({
         <p className="truncate text-lg font-bold text-slate-900" title={typeof value === 'string' ? value : undefined}>
           {value}
         </p>
+        {hint && <p className="mt-0.5 truncate text-xs text-slate-400">{hint}</p>}
       </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------- Segmented
+/** Control segmentado (pestañas tipo "pill"). Reutilizable para filtros
+ *  o para elegir entre opciones (ingreso/egreso/ajuste, etc.). */
+export function Segmented<T extends string>({
+  options,
+  value,
+  onChange,
+  size = 'md',
+}: {
+  options: { value: T; label: ReactNode; activeClass?: string }[]
+  value: T
+  onChange: (v: T) => void
+  size?: 'sm' | 'md'
+}) {
+  const pad = size === 'sm' ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'
+  return (
+    <div className="inline-flex w-full rounded-xl bg-slate-100 p-1 sm:w-auto">
+      {options.map((op) => {
+        const active = op.value === value
+        return (
+          <button
+            key={op.value}
+            type="button"
+            onClick={() => onChange(op.value)}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg font-semibold transition ${pad} ${
+              active
+                ? op.activeClass ?? 'bg-white text-brand-700 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            {op.label}
+          </button>
+        )
+      })}
     </div>
   )
 }
