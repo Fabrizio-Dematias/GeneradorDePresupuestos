@@ -2,12 +2,13 @@ import { FormEvent, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { LOGO_DATA_URL } from '../lib/logo'
 import { Button, Input } from '../components/ui'
-import { IconAlert } from '../components/icons'
+import { IconAlert, IconEye, IconEyeOff } from '../components/icons'
 
 export default function Login() {
   const { signIn } = useAuth()
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -15,7 +16,7 @@ export default function Login() {
     e.preventDefault()
     setError(null)
     setLoading(true)
-    const mensaje = await signIn(email.trim(), password)
+    const mensaje = await signIn(username, password)
     setLoading(false)
     if (mensaje) setError(mensaje)
   }
@@ -38,32 +39,49 @@ export default function Login() {
           className="space-y-4 rounded-2xl border border-slate-700/60 bg-slate-800/60 p-6 shadow-xl backdrop-blur"
         >
           <div>
-            <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-slate-200">
-              Email
+            <label htmlFor="username" className="mb-1.5 block text-sm font-medium text-slate-200">
+              Usuario
             </label>
             <Input
-              id="email"
-              type="email"
+              id="username"
+              type="text"
               required
-              autoComplete="email"
-              placeholder="tu@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="username"
+              placeholder="tu usuario"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
             />
           </div>
+
           <div>
             <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-slate-200">
               Contraseña
             </label>
-            <Input
-              id="password"
-              type="password"
-              required
-              autoComplete="current-password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                required
+                autoComplete="current-password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                tabIndex={-1}
+                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-200 transition-colors"
+              >
+                {showPassword ? (
+                  <IconEyeOff className="h-4 w-4" />
+                ) : (
+                  <IconEye className="h-4 w-4" />
+                )}
+              </button>
+            </div>
           </div>
 
           {error && (

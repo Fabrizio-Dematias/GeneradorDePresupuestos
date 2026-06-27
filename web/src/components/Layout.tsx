@@ -28,7 +28,7 @@ const navegacion = [
 ]
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
-  const { session, signOut } = useAuth()
+  const { session, username, signOut } = useAuth()
 
   return (
     <div className="flex h-full flex-col">
@@ -64,7 +64,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
 
       <div className="border-t border-slate-800 p-3">
-        <p className="truncate px-3 pb-2 text-xs text-slate-500">{session?.user.email}</p>
+        <p className="truncate px-3 pb-2 text-xs text-slate-500">{username ?? session?.user.email}</p>
         <button
           onClick={() => signOut()}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
