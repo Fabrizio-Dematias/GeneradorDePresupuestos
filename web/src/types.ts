@@ -25,6 +25,16 @@ export interface MovimientoStock {
   fecha: string
 }
 
+export interface Cliente {
+  id: number
+  nombre: string
+  domicilio: string | null
+  cuit: string | null
+  condicion_iva: string | null
+  condicion_venta: string | null
+  fecha_creacion: string | null
+}
+
 export interface Remito {
   id: number
   numero: string

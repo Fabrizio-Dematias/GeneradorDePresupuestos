@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { formatARS, formatFechaHora } from '../lib/format'
 import {
@@ -7,6 +7,7 @@ import {
   EmptyState,
   LoadingState,
   PageHeader,
+  Pagination,
   Select,
   StatCard,
   categoriaBadgeColor,
@@ -15,46 +16,63 @@ import { IconClock, IconSearch, IconTrendingUp } from '../components/icons'
 import { useToast } from '../components/Toast'
 import { CATEGORIAS_BASE, type HistorialPrecio } from '../types'
 
-const LIMITE = 500
+const POR_PAGINA = 50
 
 export default function HistorialPrecios() {
   const { toast } = useToast()
   const [historial, setHistorial] = useState<HistorialPrecio[] | null>(null)
+  const [total, setTotal] = useState(0)
+  const [pagina, setPagina] = useState(1)
   const [busqueda, setBusqueda] = useState('')
   const [categoria, setCategoria] = useState('TODAS')
+  const [ultimoCambio, setUltimoCambio] = useState<string | null>(null)
 
+  // Fecha del último cambio (independiente de filtros y paginación)
   useEffect(() => {
     supabase
       .from('historial_precios')
-      .select('*')
+      .select('fecha_cambio')
       .order('fecha_cambio', { ascending: false })
-      .limit(LIMITE)
-      .then(({ data, error }) => {
-        if (error) toast('error', 'No se pudo cargar el historial de precios')
-        setHistorial((data as HistorialPrecio[]) ?? [])
-      })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      .limit(1)
+      .then(({ data }) => setUltimoCambio(data?.[0]?.fecha_cambio ?? null))
   }, [])
 
-  const categorias = useMemo(() => {
-    const set = new Set(CATEGORIAS_BASE)
-    for (const h of historial ?? []) if (h.categoria) set.add(h.categoria)
-    return Array.from(set).sort()
-  }, [historial])
+  // Al cambiar un filtro se vuelve a la primera página
+  useEffect(() => {
+    setPagina(1)
+  }, [busqueda, categoria])
 
-  const filtrados = useMemo(() => {
-    const q = busqueda.trim().toLowerCase()
-    return (historial ?? []).filter((h) => {
-      const matchTexto =
-        !q ||
-        h.producto_codigo.toLowerCase().includes(q) ||
-        (h.producto_descripcion ?? '').toLowerCase().includes(q)
-      const matchCategoria = categoria === 'TODAS' || h.categoria === categoria
-      return matchTexto && matchCategoria
-    })
-  }, [historial, busqueda, categoria])
+  // Carga paginada desde el servidor (con debounce al tipear)
+  useEffect(() => {
+    const timer = setTimeout(cargar, busqueda ? 300 : 0)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pagina, busqueda, categoria])
 
-  const ultimoCambio = historial?.[0]?.fecha_cambio ?? null
+  async function cargar() {
+    const from = (pagina - 1) * POR_PAGINA
+    let query = supabase.from('historial_precios').select('*', { count: 'exact' })
+
+    const q = busqueda.trim().replace(/[,()%]/g, ' ').trim()
+    if (q) query = query.or(`producto_codigo.ilike.%${q}%,producto_descripcion.ilike.%${q}%`)
+    if (categoria !== 'TODAS') query = query.eq('categoria', categoria)
+
+    const { data, count, error } = await query
+      .order('fecha_cambio', { ascending: false })
+      .range(from, from + POR_PAGINA - 1)
+
+    if (error) {
+      toast('error', 'No se pudo cargar el historial de precios')
+      setHistorial([])
+      setTotal(0)
+      return
+    }
+    setHistorial((data as HistorialPrecio[]) ?? [])
+    setTotal(count ?? 0)
+  }
+
+  const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA))
+  const hayFiltros = Boolean(busqueda.trim()) || categoria !== 'TODAS'
 
   return (
     <div>
@@ -67,8 +85,9 @@ export default function HistorialPrecios() {
         <StatCard
           icon={<IconClock className="h-6 w-6" />}
           label="Cambios registrados"
-          value={historial?.length ?? '…'}
+          value={historial ? total : '…'}
           tint="violet"
+          hint={hayFiltros ? 'con los filtros aplicados' : undefined}
         />
         <StatCard
           icon={<IconTrendingUp className="h-6 w-6" />}
@@ -96,7 +115,7 @@ export default function HistorialPrecios() {
             aria-label="Filtrar por categoría"
           >
             <option value="TODAS">Todas las categorías</option>
-            {categorias.map((c) => (
+            {CATEGORIAS_BASE.map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
@@ -106,14 +125,14 @@ export default function HistorialPrecios() {
 
         {historial === null ? (
           <LoadingState />
-        ) : filtrados.length === 0 ? (
+        ) : historial.length === 0 ? (
           <EmptyState
             icon={<IconClock className="h-12 w-12" />}
-            title={historial.length === 0 ? 'Todavía no hay cambios registrados' : 'Sin resultados'}
+            title={hayFiltros ? 'Sin resultados' : 'Todavía no hay cambios registrados'}
             description={
-              historial.length === 0
-                ? 'Cuando edites el precio de un producto o apliques una actualización masiva, los cambios van a quedar registrados acá.'
-                : 'Probá con otra búsqueda u otra categoría.'
+              hayFiltros
+                ? 'Probá con otra búsqueda u otra categoría.'
+                : 'Cuando edites el precio de un producto o apliques una actualización masiva, los cambios van a quedar registrados acá.'
             }
           />
         ) : (
@@ -131,7 +150,7 @@ export default function HistorialPrecios() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filtrados.map((h) => {
+                {historial.map((h) => {
                   const pct = h.porcentaje_cambio
                   const subio = (pct ?? 0) >= 0
                   return (
@@ -168,11 +187,12 @@ export default function HistorialPrecios() {
                 })}
               </tbody>
             </table>
-            {historial.length >= LIMITE && (
-              <p className="mt-3 text-center text-xs text-slate-400">
-                Se muestran los últimos {LIMITE} cambios.
-              </p>
-            )}
+            <Pagination
+              pagina={pagina}
+              totalPaginas={totalPaginas}
+              totalResultados={total}
+              onChange={setPagina}
+            />
           </div>
         )}
       </Card>

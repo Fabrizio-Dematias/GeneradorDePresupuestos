@@ -318,6 +318,47 @@ export function Segmented<T extends string>({
   )
 }
 
+// ---------------------------------------------------------------- Pagination
+/** Barra de paginación estándar: "N resultados · página X de Y" + Anterior/Siguiente. */
+export function Pagination({
+  pagina,
+  totalPaginas,
+  totalResultados,
+  onChange,
+}: {
+  pagina: number
+  totalPaginas: number
+  totalResultados: number
+  onChange: (pagina: number) => void
+}) {
+  if (totalResultados === 0) return null
+  return (
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+      <p className="text-xs text-slate-500">
+        {totalResultados} resultados · página {pagina} de {totalPaginas}
+      </p>
+      <div className="flex gap-2">
+        <Button
+          variant="secondary"
+          className="!px-3 !py-1.5"
+          disabled={pagina <= 1}
+          onClick={() => onChange(pagina - 1)}
+        >
+          ← Anterior
+        </Button>
+        <Button
+          variant="secondary"
+          className="!px-3 !py-1.5"
+          disabled={pagina >= totalPaginas}
+          onClick={() => onChange(pagina + 1)}
+        >
+          Siguiente →
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 // ---------------------------------------------------------------- Modal
 export function Modal({
   open,

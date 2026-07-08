@@ -9,6 +9,7 @@ import {
   EmptyState,
   LoadingState,
   PageHeader,
+  Pagination,
   Segmented,
   Select,
   StatCard,
@@ -28,6 +29,7 @@ import MovimientoStockModal from '../components/MovimientoStockModal'
 import { CATEGORIAS_BASE, estadoStock, type MovimientoStock, type Producto } from '../types'
 
 const POR_PAGINA = 25
+const MOV_POR_PAGINA = 50
 
 type Tab = 'inventario' | 'movimientos'
 type EstadoFiltro = 'todos' | 'ok' | 'bajo' | 'sin'
@@ -45,18 +47,31 @@ export default function Stock() {
   const [estado, setEstado] = useState<EstadoFiltro>('todos')
   const [pagina, setPagina] = useState(1)
 
-  // Filtros de movimientos
+  // Filtros de movimientos (se aplican en el servidor)
   const [tipoMov, setTipoMov] = useState<'todos' | 'ingreso' | 'egreso' | 'ajuste'>('todos')
   const [busquedaMov, setBusquedaMov] = useState('')
+  const [movPagina, setMovPagina] = useState(1)
+  const [movTotal, setMovTotal] = useState(0)
 
   // Modal de movimiento
   const [movProducto, setMovProducto] = useState<Producto | null>(null)
 
   useEffect(() => {
     cargarProductos()
-    cargarMovimientos()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Al cambiar un filtro de movimientos se vuelve a la primera página
+  useEffect(() => {
+    setMovPagina(1)
+  }, [busquedaMov, tipoMov])
+
+  // Carga paginada de movimientos desde el servidor (con debounce al tipear)
+  useEffect(() => {
+    const timer = setTimeout(cargarMovimientos, busquedaMov ? 300 : 0)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [movPagina, busquedaMov, tipoMov])
 
   async function cargarProductos() {
     const { data, error } = await supabase.from('productos').select('*').order('codigo')
@@ -72,17 +87,29 @@ export default function Stock() {
   }
 
   async function cargarMovimientos() {
-    const { data, error } = await supabase
-      .from('movimientos_stock')
-      .select('*')
+    const from = (movPagina - 1) * MOV_POR_PAGINA
+    let query = supabase.from('movimientos_stock').select('*', { count: 'exact' })
+
+    if (tipoMov !== 'todos') query = query.eq('tipo', tipoMov)
+    const q = busquedaMov.trim().replace(/[,()%]/g, ' ').trim()
+    if (q) {
+      query = query.or(
+        `producto_codigo.ilike.%${q}%,producto_descripcion.ilike.%${q}%,motivo.ilike.%${q}%`
+      )
+    }
+
+    const { data, count, error } = await query
       .order('fecha', { ascending: false })
-      .limit(500)
+      .range(from, from + MOV_POR_PAGINA - 1)
+
     if (error) {
       // La tabla puede no existir todavía si no corrió migration_stock.sql
       setMovimientos([])
+      setMovTotal(0)
       return
     }
     setMovimientos((data as MovimientoStock[]) ?? [])
+    setMovTotal(count ?? 0)
   }
 
   function trasMovimiento() {
@@ -134,19 +161,7 @@ export default function Stock() {
     setPagina(1)
   }, [busqueda, categoria, estado])
 
-  // ---------------------------------------------- Movimientos filtrados
-  const movFiltrados = useMemo(() => {
-    const q = busquedaMov.trim().toLowerCase()
-    return (movimientos ?? []).filter((m) => {
-      const matchTipo = tipoMov === 'todos' || m.tipo === tipoMov
-      const matchTexto =
-        !q ||
-        (m.producto_codigo ?? '').toLowerCase().includes(q) ||
-        (m.producto_descripcion ?? '').toLowerCase().includes(q) ||
-        (m.motivo ?? '').toLowerCase().includes(q)
-      return matchTipo && matchTexto
-    })
-  }, [movimientos, tipoMov, busquedaMov])
+  const movTotalPaginas = Math.max(1, Math.ceil(movTotal / MOV_POR_PAGINA))
 
   function verMovimientosDe(p: Producto) {
     setBusquedaMov(p.codigo ?? '')
@@ -380,7 +395,7 @@ export default function Stock() {
 
           {movimientos === null ? (
             <LoadingState />
-          ) : movFiltrados.length === 0 ? (
+          ) : movimientos.length === 0 ? (
             <EmptyState
               icon={<IconArrowsUpDown className="h-12 w-12" />}
               title="Sin movimientos"
@@ -400,7 +415,7 @@ export default function Stock() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {movFiltrados.map((m) => (
+                  {movimientos.map((m) => (
                     <tr key={m.id} className="transition hover:bg-slate-50">
                       <td className="whitespace-nowrap py-2.5 pr-4 text-xs text-slate-500">
                         {formatFechaHora(m.fecha)}
@@ -437,6 +452,12 @@ export default function Stock() {
                   ))}
                 </tbody>
               </table>
+              <Pagination
+                pagina={movPagina}
+                totalPaginas={movTotalPaginas}
+                totalResultados={movTotal}
+                onChange={setMovPagina}
+              />
             </div>
           )}
         </Card>

@@ -131,11 +131,28 @@ create policy "acceso total autenticado" on movimientos_stock
 
 -- ---------- Funciones ----------
 
+-- Calcula el próximo número de remito ('0001-NNN') a partir del mayor
+-- sufijo existente. La web lo usa para mostrarlo; la asignación definitiva
+-- la hace crear_remito bajo advisory lock.
+create or replace function proximo_numero_remito()
+returns text
+language sql
+stable
+as $$
+    select '0001-' || lpad(
+        (coalesce(max((split_part(numero, '-', 2))::integer), 0) + 1)::text, 3, '0')
+    from remitos
+    where split_part(numero, '-', 2) ~ '^[0-9]+$';
+$$;
+
 -- Crea el remito y sus items en una sola transacción (todo o nada) y
 -- descuenta el stock de cada ítem cuyo código exista en el catálogo,
--- dejando registrado el movimiento.
+-- dejando registrado el movimiento. El número se asigna en el servidor
+-- (serializado con advisory lock) y se devuelve en el jsonb {id, numero}.
+drop function if exists crear_remito(jsonb, jsonb);
+
 create or replace function crear_remito(p_remito jsonb, p_items jsonb)
-returns bigint
+returns jsonb
 language plpgsql
 as $$
 declare
@@ -149,33 +166,37 @@ declare
     v_anterior integer;
     v_nuevo integer;
 begin
-    v_numero := p_remito->>'numero';
+    -- Serializa la asignación del número entre transacciones concurrentes
+    perform pg_advisory_xact_lock(hashtext('remitos_numero'));
+    v_numero := proximo_numero_remito();
 
-    insert into remitos (numero, fecha, cliente_nombre, cliente_domicilio, cliente_cuit,
+    insert into remitos (numero, fecha, cliente_id, cliente_nombre, cliente_domicilio, cliente_cuit,
                          condicion_iva, condicion_venta, total, ruta_pdf)
     values (
-        p_remito->>'numero',
+        v_numero,
         (p_remito->>'fecha')::date,
+        nullif(p_remito->>'cliente_id', '')::bigint,
         p_remito->>'cliente_nombre',
         p_remito->>'cliente_domicilio',
         p_remito->>'cliente_cuit',
         coalesce(p_remito->>'condicion_iva', 'Consumidor Final'),
         coalesce(p_remito->>'condicion_venta', 'Contado'),
         (p_remito->>'total')::double precision,
-        p_remito->>'ruta_pdf'
+        'remito_' || regexp_replace(coalesce(p_remito->>'cliente_nombre', ''), '[^a-zA-Z0-9]', '_', 'g')
+            || '_' || v_numero || '.pdf'
     )
     returning id into v_id;
 
     insert into remito_items (remito_id, codigo, cantidad, descripcion, precio_unitario, bonificacion, subtotal)
     select
         v_id,
-        i->>'codigo',
-        (i->>'cantidad')::integer,
-        i->>'descripcion',
-        (i->>'precio_unitario')::double precision,
-        coalesce((i->>'bonificacion')::double precision, 0),
-        (i->>'subtotal')::double precision
-    from jsonb_array_elements(p_items) as i;
+        elem->>'codigo',
+        (elem->>'cantidad')::integer,
+        elem->>'descripcion',
+        (elem->>'precio_unitario')::double precision,
+        coalesce((elem->>'bonificacion')::double precision, 0),
+        (elem->>'subtotal')::double precision
+    from jsonb_array_elements(p_items) as elem;
 
     -- Descuento de stock por cada ítem con código existente.
     -- El UPDATE es relativo (stock = stock - v_cant) y atómico: evita el
@@ -201,7 +222,142 @@ begin
         end if;
     end loop;
 
-    return v_id;
+    return jsonb_build_object('id', v_id, 'numero', v_numero);
+end;
+$$;
+
+-- Elimina un remito reponiendo el stock descontado al crearlo y dejando
+-- registrado el movimiento de reposición. Los items se borran en cascada.
+create or replace function eliminar_remito(p_remito_id bigint)
+returns void
+language plpgsql
+as $$
+declare
+    v_numero text;
+    it record;
+    v_prod_id bigint;
+    v_codigo text;
+    v_desc text;
+    v_anterior integer;
+    v_nuevo integer;
+begin
+    select numero into v_numero from remitos where id = p_remito_id for update;
+    if not found then
+        raise exception 'Remito % no encontrado', p_remito_id;
+    end if;
+
+    for it in
+        select codigo, sum(cantidad) as cantidad
+        from remito_items
+        where remito_id = p_remito_id and coalesce(codigo, '') <> '' and cantidad > 0
+        group by codigo
+    loop
+        update productos
+        set stock = stock + it.cantidad
+        where codigo = it.codigo
+        returning id, codigo, descripcion, stock - it.cantidad, stock
+        into v_prod_id, v_codigo, v_desc, v_anterior, v_nuevo;
+        if found then
+            insert into movimientos_stock (producto_id, producto_codigo, producto_descripcion,
+                                           tipo, cantidad, stock_anterior, stock_nuevo, motivo)
+            values (v_prod_id, v_codigo, v_desc,
+                    'ingreso', it.cantidad, v_anterior, v_nuevo,
+                    'Reposición · remito ' || v_numero || ' eliminado');
+        end if;
+    end loop;
+
+    delete from remitos where id = p_remito_id;
+end;
+$$;
+
+-- Edita un remito: repone el stock de los items originales, reemplaza los
+-- items y datos (el número no cambia) y descuenta el stock nuevo.
+create or replace function actualizar_remito(p_remito_id bigint, p_remito jsonb, p_items jsonb)
+returns jsonb
+language plpgsql
+as $$
+declare
+    v_numero text;
+    it record;
+    i jsonb;
+    v_cant integer;
+    v_prod_id bigint;
+    v_codigo text;
+    v_desc text;
+    v_anterior integer;
+    v_nuevo integer;
+begin
+    select numero into v_numero from remitos where id = p_remito_id for update;
+    if not found then
+        raise exception 'Remito % no encontrado', p_remito_id;
+    end if;
+
+    for it in
+        select codigo, sum(cantidad) as cantidad
+        from remito_items
+        where remito_id = p_remito_id and coalesce(codigo, '') <> '' and cantidad > 0
+        group by codigo
+    loop
+        update productos
+        set stock = stock + it.cantidad
+        where codigo = it.codigo
+        returning id, codigo, descripcion, stock - it.cantidad, stock
+        into v_prod_id, v_codigo, v_desc, v_anterior, v_nuevo;
+        if found then
+            insert into movimientos_stock (producto_id, producto_codigo, producto_descripcion,
+                                           tipo, cantidad, stock_anterior, stock_nuevo, motivo, remito_id)
+            values (v_prod_id, v_codigo, v_desc,
+                    'ingreso', it.cantidad, v_anterior, v_nuevo,
+                    'Edición · remito ' || v_numero || ' (reversión)', p_remito_id);
+        end if;
+    end loop;
+
+    delete from remito_items where remito_id = p_remito_id;
+
+    update remitos
+    set fecha             = (p_remito->>'fecha')::date,
+        cliente_id        = nullif(p_remito->>'cliente_id', '')::bigint,
+        cliente_nombre    = p_remito->>'cliente_nombre',
+        cliente_domicilio = p_remito->>'cliente_domicilio',
+        cliente_cuit      = p_remito->>'cliente_cuit',
+        condicion_iva     = coalesce(p_remito->>'condicion_iva', 'Consumidor Final'),
+        condicion_venta   = coalesce(p_remito->>'condicion_venta', 'Contado'),
+        total             = (p_remito->>'total')::double precision,
+        ruta_pdf          = 'remito_' || regexp_replace(coalesce(p_remito->>'cliente_nombre', ''), '[^a-zA-Z0-9]', '_', 'g')
+                                || '_' || v_numero || '.pdf'
+    where id = p_remito_id;
+
+    insert into remito_items (remito_id, codigo, cantidad, descripcion, precio_unitario, bonificacion, subtotal)
+    select
+        p_remito_id,
+        elem->>'codigo',
+        (elem->>'cantidad')::integer,
+        elem->>'descripcion',
+        (elem->>'precio_unitario')::double precision,
+        coalesce((elem->>'bonificacion')::double precision, 0),
+        (elem->>'subtotal')::double precision
+    from jsonb_array_elements(p_items) as elem;
+
+    for i in select * from jsonb_array_elements(p_items)
+    loop
+        v_cant := coalesce((i->>'cantidad')::integer, 0);
+        if v_cant > 0 and coalesce(i->>'codigo', '') <> '' then
+            update productos
+            set stock = stock - v_cant
+            where codigo = (i->>'codigo')
+            returning id, codigo, descripcion, stock + v_cant, stock
+            into v_prod_id, v_codigo, v_desc, v_anterior, v_nuevo;
+            if found then
+                insert into movimientos_stock (producto_id, producto_codigo, producto_descripcion,
+                                               tipo, cantidad, stock_anterior, stock_nuevo, motivo, remito_id)
+                values (v_prod_id, v_codigo, v_desc,
+                        'egreso', v_cant, v_anterior, v_nuevo,
+                        'Venta · remito ' || v_numero || ' (editado)', p_remito_id);
+            end if;
+        end if;
+    end loop;
+
+    return jsonb_build_object('id', p_remito_id, 'numero', v_numero);
 end;
 $$;
 

@@ -9,6 +9,7 @@ import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import NuevoRemito from './pages/NuevoRemito'
 import Remitos from './pages/Remitos'
+import Clientes from './pages/Clientes'
 import Productos from './pages/Productos'
 import Stock from './pages/Stock'
 import HistorialPrecios from './pages/HistorialPrecios'
@@ -53,6 +54,8 @@ export default function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/remitos" element={<Remitos />} />
               <Route path="/remitos/nuevo" element={<NuevoRemito />} />
+              <Route path="/remitos/:id/editar" element={<NuevoRemito />} />
+              <Route path="/clientes" element={<Clientes />} />
               <Route path="/productos" element={<Productos />} />
               <Route path="/stock" element={<Stock />} />
               <Route path="/historial" element={<HistorialPrecios />} />

@@ -13,6 +13,7 @@ import {
   IconHome,
   IconLogout,
   IconMenu,
+  IconUsers,
   IconX,
 } from './icons'
 
@@ -20,6 +21,7 @@ const navegacion = [
   { to: '/', label: 'Panel', icon: IconHome, end: true },
   { to: '/remitos/nuevo', label: 'Nuevo remito', icon: IconDocumentPlus },
   { to: '/remitos', label: 'Remitos', icon: IconDocumentList, end: true },
+  { to: '/clientes', label: 'Clientes', icon: IconUsers },
   { to: '/productos', label: 'Productos', icon: IconCube },
   { to: '/stock', label: 'Stock', icon: IconArchiveBox },
   { to: '/historial', label: 'Historial de precios', icon: IconClock },

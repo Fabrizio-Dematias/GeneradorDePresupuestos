@@ -143,13 +143,13 @@ begin
     insert into remito_items (remito_id, codigo, cantidad, descripcion, precio_unitario, bonificacion, subtotal)
     select
         v_id,
-        i->>'codigo',
-        (i->>'cantidad')::integer,
-        i->>'descripcion',
-        (i->>'precio_unitario')::double precision,
-        coalesce((i->>'bonificacion')::double precision, 0),
-        (i->>'subtotal')::double precision
-    from jsonb_array_elements(p_items) as i;
+        elem->>'codigo',
+        (elem->>'cantidad')::integer,
+        elem->>'descripcion',
+        (elem->>'precio_unitario')::double precision,
+        coalesce((elem->>'bonificacion')::double precision, 0),
+        (elem->>'subtotal')::double precision
+    from jsonb_array_elements(p_items) as elem;
 
     -- Descuento de stock por cada ítem con código existente.
     -- El UPDATE es relativo (stock = stock - v_cant) y atómico: evita el
