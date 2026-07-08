@@ -15,6 +15,7 @@ import {
   Pagination,
 } from '../components/ui'
 import {
+  IconBan,
   IconDocumentList,
   IconDownload,
   IconEye,
@@ -44,6 +45,8 @@ export default function Remitos() {
   const [itemsDetalle, setItemsDetalle] = useState<RemitoItem[] | null>(null)
   const [aEliminar, setAEliminar] = useState<Remito | null>(null)
   const [eliminando, setEliminando] = useState(false)
+  const [aAnular, setAAnular] = useState<Remito | null>(null)
+  const [anulando, setAnulando] = useState(false)
   const [descargando, setDescargando] = useState<number | null>(null)
   const [exportando, setExportando] = useState(false)
 
@@ -72,7 +75,7 @@ export default function Remitos() {
 
     const { data, count, error } = await query
       .order('fecha', { ascending: false })
-      .order('numero', { ascending: false })
+      .order('id', { ascending: false })
       .range(from, from + POR_PAGINA - 1)
 
     if (error) {
@@ -101,7 +104,7 @@ export default function Remitos() {
         if (hasta) query = query.lte('fecha', hasta)
         const { data, error } = await query
           .order('fecha', { ascending: false })
-          .order('numero', { ascending: false })
+          .order('id', { ascending: false })
           .range(desde_i, desde_i + LOTE - 1)
         if (error) throw error
         filas.push(...((data as Remito[]) ?? []))
@@ -166,6 +169,7 @@ export default function Remitos() {
         condicionVenta: remito.condicion_venta ?? 'Contado',
         items: (data as RemitoItem[]) ?? [],
         total: remito.total,
+        anulado: remito.estado === 'Anulado',
       })
       toast('success', `PDF del remito ${remito.numero} descargado.`)
     } catch (e: any) {
@@ -173,6 +177,21 @@ export default function Remitos() {
     } finally {
       setDescargando(null)
     }
+  }
+
+  async function anular() {
+    if (!aAnular) return
+    setAnulando(true)
+    const { error } = await supabase.rpc('anular_remito', { p_remito_id: aAnular.id })
+    setAnulando(false)
+    if (error) {
+      toast('error', `No se pudo anular el remito: ${error.message}`)
+      return
+    }
+    toast('success', `Remito ${aAnular.numero} anulado y stock repuesto.`)
+    setAAnular(null)
+    setDetalle(null)
+    cargar()
   }
 
   async function eliminar() {
@@ -198,7 +217,12 @@ export default function Remitos() {
       toast('error', `No se pudo eliminar el remito: ${error.message}`)
       return
     }
-    toast('success', `Remito ${aEliminar.numero} eliminado y stock repuesto.`)
+    toast(
+      'success',
+      aEliminar.estado === 'Anulado'
+        ? `Remito ${aEliminar.numero} eliminado (el stock ya había sido repuesto al anularlo).`
+        : `Remito ${aEliminar.numero} eliminado y stock repuesto.`
+    )
     setAEliminar(null)
     setDetalle(null)
     cargar()
@@ -315,7 +339,9 @@ export default function Remitos() {
                         {formatARS(r.total)}
                       </td>
                       <td className="py-3 pr-4">
-                        <Badge color="green">{r.estado ?? 'Completado'}</Badge>
+                        <Badge color={r.estado === 'Anulado' ? 'red' : 'green'}>
+                          {r.estado ?? 'Completado'}
+                        </Badge>
                       </td>
                       <td className="py-3">
                         <div className="flex justify-end gap-1">
@@ -326,13 +352,15 @@ export default function Remitos() {
                           >
                             <IconEye className="h-5 w-5" />
                           </button>
-                          <button
-                            onClick={() => navigate(`/remitos/${r.id}/editar`)}
-                            className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
-                            title="Editar"
-                          >
-                            <IconPencil className="h-5 w-5" />
-                          </button>
+                          {r.estado !== 'Anulado' && (
+                            <button
+                              onClick={() => navigate(`/remitos/${r.id}/editar`)}
+                              className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+                              title="Editar"
+                            >
+                              <IconPencil className="h-5 w-5" />
+                            </button>
+                          )}
                           <button
                             onClick={() => descargarPDF(r)}
                             disabled={descargando === r.id}
@@ -341,10 +369,19 @@ export default function Remitos() {
                           >
                             <IconDownload className="h-5 w-5" />
                           </button>
+                          {r.estado !== 'Anulado' && (
+                            <button
+                              onClick={() => setAAnular(r)}
+                              className="rounded-lg p-2 text-slate-400 transition hover:bg-amber-50 hover:text-amber-600"
+                              title="Anular (repone stock, el remito queda en la historia)"
+                            >
+                              <IconBan className="h-5 w-5" />
+                            </button>
+                          )}
                           <button
                             onClick={() => setAEliminar(r)}
                             className="rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
-                            title="Eliminar"
+                            title="Eliminar definitivamente"
                           >
                             <IconTrash className="h-5 w-5" />
                           </button>
@@ -365,6 +402,11 @@ export default function Remitos() {
                       <p className="truncate font-medium text-slate-800">{r.cliente_nombre || '—'}</p>
                       <p className="mt-0.5 text-xs text-slate-500">
                         <span className="font-mono">{r.numero}</span> · {formatFecha(r.fecha)}
+                        {r.estado === 'Anulado' && (
+                          <span className="ml-2">
+                            <Badge color="red">Anulado</Badge>
+                          </span>
+                        )}
                       </p>
                     </div>
                     <p className="shrink-0 font-semibold text-slate-900">{formatARS(r.total)}</p>
@@ -373,13 +415,15 @@ export default function Remitos() {
                     <Button variant="secondary" className="flex-1 !py-1.5" onClick={() => abrirDetalle(r)}>
                       <IconEye className="h-4 w-4" /> Ver
                     </Button>
-                    <Button
-                      variant="secondary"
-                      className="flex-1 !py-1.5"
-                      onClick={() => navigate(`/remitos/${r.id}/editar`)}
-                    >
-                      <IconPencil className="h-4 w-4" /> Editar
-                    </Button>
+                    {r.estado !== 'Anulado' && (
+                      <Button
+                        variant="secondary"
+                        className="flex-1 !py-1.5"
+                        onClick={() => navigate(`/remitos/${r.id}/editar`)}
+                      >
+                        <IconPencil className="h-4 w-4" /> Editar
+                      </Button>
+                    )}
                     <Button
                       variant="secondary"
                       className="flex-1 !py-1.5"
@@ -388,9 +432,15 @@ export default function Remitos() {
                     >
                       <IconDownload className="h-4 w-4" /> PDF
                     </Button>
-                    <Button variant="secondary" className="!px-3 !py-1.5" onClick={() => setAEliminar(r)}>
-                      <IconTrash className="h-4 w-4 text-red-500" />
-                    </Button>
+                    {r.estado !== 'Anulado' ? (
+                      <Button variant="secondary" className="!px-3 !py-1.5" onClick={() => setAAnular(r)}>
+                        <IconBan className="h-4 w-4 text-amber-500" />
+                      </Button>
+                    ) : (
+                      <Button variant="secondary" className="!px-3 !py-1.5" onClick={() => setAEliminar(r)}>
+                        <IconTrash className="h-4 w-4 text-red-500" />
+                      </Button>
+                    )}
                   </div>
                 </li>
               ))}
@@ -418,9 +468,16 @@ export default function Remitos() {
               <Button variant="secondary" onClick={() => setAEliminar(detalle)}>
                 <IconTrash className="h-4 w-4 text-red-500" /> Eliminar
               </Button>
-              <Button variant="secondary" onClick={() => navigate(`/remitos/${detalle.id}/editar`)}>
-                <IconPencil className="h-4 w-4" /> Editar
-              </Button>
+              {detalle.estado !== 'Anulado' && (
+                <>
+                  <Button variant="secondary" onClick={() => setAAnular(detalle)}>
+                    <IconBan className="h-4 w-4 text-amber-500" /> Anular
+                  </Button>
+                  <Button variant="secondary" onClick={() => navigate(`/remitos/${detalle.id}/editar`)}>
+                    <IconPencil className="h-4 w-4" /> Editar
+                  </Button>
+                </>
+              )}
               <Button onClick={() => descargarPDF(detalle)} loading={descargando === detalle.id}>
                 <IconDownload className="h-4 w-4" /> Descargar PDF
               </Button>
@@ -502,14 +559,35 @@ export default function Remitos() {
       </Modal>
 
       <ConfirmDialog
-        open={aEliminar !== null}
-        title="Eliminar remito"
+        open={aAnular !== null}
+        title="Anular remito"
+        confirmLabel="Anular"
         message={
           <p>
-            ¿Seguro que querés eliminar el remito{' '}
+            ¿Anular el remito <strong className="font-mono">{aAnular?.numero}</strong> de{' '}
+            <strong>{aAnular?.cliente_nombre}</strong>? El stock descontado se repone y el
+            remito queda en el listado como <strong>Anulado</strong> (excluido de la
+            facturación y los reportes).
+          </p>
+        }
+        loading={anulando}
+        onConfirm={anular}
+        onCancel={() => setAAnular(null)}
+      />
+
+      <ConfirmDialog
+        open={aEliminar !== null}
+        title="Eliminar remito definitivamente"
+        message={
+          <p>
+            ¿Seguro que querés <strong>borrar para siempre</strong> el remito{' '}
             <strong className="font-mono">{aEliminar?.numero}</strong> de{' '}
-            <strong>{aEliminar?.cliente_nombre}</strong>? El stock descontado se repone
-            automáticamente. Esta acción no se puede deshacer.
+            <strong>{aEliminar?.cliente_nombre}</strong>?{' '}
+            {aEliminar?.estado === 'Anulado'
+              ? 'El stock ya fue repuesto cuando se anuló.'
+              : 'El stock descontado se repone automáticamente.'}{' '}
+            Para una venta real conviene <strong>Anular</strong>, que conserva la historia.
+            Esta acción no se puede deshacer.
           </p>
         }
         loading={eliminando}

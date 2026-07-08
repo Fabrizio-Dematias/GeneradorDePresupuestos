@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { formatARS, formatearCUIT, hoyISO, proximoNumeroRemito, nombreArchivoRemito } from '../lib/format'
 import { Badge, Button, Card, Input, LoadingState, PageHeader, StockPill } from '../components/ui'
-import { IconPlus, IconSearch, IconTrash, IconUsers } from '../components/icons'
+import { IconEye, IconPlus, IconSearch, IconTrash, IconUsers } from '../components/icons'
 import { useToast } from '../components/Toast'
 import {
   CONDICIONES_IVA,
@@ -15,8 +15,9 @@ import {
 } from '../types'
 
 function calcularSubtotal(cantidad: number, precio: number, bonif: number): number {
-  // Misma fórmula que la app de escritorio
-  return cantidad * precio * (1 - bonif / 100)
+  // Misma fórmula que la app de escritorio, redondeada a 2 decimales
+  // (la base guarda los importes como numeric(12,2))
+  return Math.round(cantidad * precio * (1 - bonif / 100) * 100) / 100
 }
 
 /** Grupo de opciones tipo "chips" (reemplaza los radio buttons del escritorio) */
@@ -175,6 +176,11 @@ export default function NuevoRemito() {
       return
     }
     const r = remitoRes.data
+    if (r.estado === 'Anulado') {
+      toast('error', `El remito ${r.numero} está anulado y no se puede editar.`)
+      navigate('/remitos')
+      return
+    }
     setNumero(r.numero)
     setFecha(r.fecha)
     setClienteId(r.cliente_id ?? null)
@@ -343,6 +349,33 @@ export default function NuevoRemito() {
   }
 
   const total = items.reduce((acc, item) => acc + item.subtotal, 0)
+
+  const [generandoPreview, setGenerandoPreview] = useState(false)
+
+  /** Abre el PDF en una pestaña nueva sin guardar nada. */
+  async function verVistaPrevia() {
+    if (items.length === 0) return
+    setGenerandoPreview(true)
+    try {
+      const { generarRemitoDoc } = await import('../lib/pdf')
+      const doc = await generarRemitoDoc({
+        numero,
+        fecha,
+        clienteNombre: clienteNombre.trim() || '—',
+        clienteDomicilio: clienteDomicilio.trim(),
+        clienteCuit: clienteCuit.trim(),
+        condicionIVA,
+        condicionVenta,
+        items,
+        total,
+      })
+      window.open(doc.output('bloburl') as unknown as string, '_blank')
+    } catch (e: any) {
+      toast('error', `No se pudo generar la vista previa: ${e.message ?? e}`)
+    } finally {
+      setGenerandoPreview(false)
+    }
+  }
 
   /** Crea o actualiza el cliente en la tabla clientes y devuelve su id. */
   async function persistirCliente(): Promise<number | null> {
@@ -803,9 +836,20 @@ export default function NuevoRemito() {
               </div>
 
               <Button
+                variant="secondary"
+                onClick={verVistaPrevia}
+                loading={generandoPreview}
+                className="mt-4 w-full"
+                disabled={items.length === 0}
+              >
+                <IconEye className="h-4 w-4" />
+                Vista previa del PDF
+              </Button>
+
+              <Button
                 onClick={guardarRemito}
                 loading={guardando}
-                className="mt-4 w-full py-3"
+                className="mt-2 w-full py-3"
                 disabled={items.length === 0}
               >
                 {modoEdicion ? 'Guardar cambios y descargar PDF' : 'Guardar y descargar PDF'}

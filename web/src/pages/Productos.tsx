@@ -15,7 +15,9 @@ import {
   StockPill,
   categoriaBadgeColor,
 } from '../components/ui'
-import { IconCube, IconDownload, IconPencil, IconPercent, IconPlus, IconSearch, IconTrash } from '../components/icons'
+import { IconClock, IconCube, IconDownload, IconPencil, IconPercent, IconPlus, IconSearch, IconTrash } from '../components/icons'
+import { formatFechaHora } from '../lib/format'
+import type { HistorialPrecio } from '../types'
 import { exportarCSV, fechaParaArchivo } from '../lib/csv'
 import { useToast } from '../components/Toast'
 import { CATEGORIAS_BASE, type Producto } from '../types'
@@ -55,6 +57,10 @@ export default function Productos() {
   const [guardando, setGuardando] = useState(false)
   const [aEliminar, setAEliminar] = useState<Producto | null>(null)
   const [eliminando, setEliminando] = useState(false)
+
+  // Historial de precios de un producto puntual
+  const [historialDe, setHistorialDe] = useState<Producto | null>(null)
+  const [historialFilas, setHistorialFilas] = useState<HistorialPrecio[] | null>(null)
 
   // Aumento masivo
   const [modalAumento, setModalAumento] = useState(false)
@@ -121,6 +127,24 @@ export default function Productos() {
       ])
     )
     toast('success', `Se exportaron ${filtrados.length} productos a CSV.`)
+  }
+
+  // ------------------------------------------------ Historial de un producto
+  async function abrirHistorial(p: Producto) {
+    setHistorialDe(p)
+    setHistorialFilas(null)
+    const { data, error } = await supabase
+      .from('historial_precios')
+      .select('*')
+      .eq('producto_codigo', p.codigo ?? '')
+      .order('fecha_cambio', { ascending: false })
+      .limit(100)
+    if (error) {
+      toast('error', 'No se pudo cargar el historial de este producto')
+      setHistorialFilas([])
+      return
+    }
+    setHistorialFilas((data as HistorialPrecio[]) ?? [])
   }
 
   // ------------------------------------------------ Crear / editar
@@ -367,6 +391,13 @@ export default function Productos() {
                             <IconPencil className="h-4 w-4" />
                           </button>
                           <button
+                            onClick={() => abrirHistorial(p)}
+                            className="rounded-lg p-2 text-slate-400 transition hover:bg-violet-50 hover:text-violet-600"
+                            title="Historial de precios de este producto"
+                          >
+                            <IconClock className="h-4 w-4" />
+                          </button>
+                          <button
                             onClick={() => setAEliminar(p)}
                             className="rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
                             title="Eliminar"
@@ -570,6 +601,77 @@ export default function Productos() {
             </div>
           )}
         </div>
+      </Modal>
+
+      {/* Historial de precios de un producto puntual */}
+      <Modal
+        open={historialDe !== null}
+        onClose={() => setHistorialDe(null)}
+        title={historialDe ? `Historial de precios · ${historialDe.codigo}` : ''}
+        size="lg"
+      >
+        {historialDe && (
+          <div className="space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-sm text-slate-600">{historialDe.descripcion}</p>
+              <p className="shrink-0 text-sm">
+                <span className="text-slate-400">Precio actual: </span>
+                <span className="font-semibold text-brand-700">
+                  {formatARS(historialDe.precio_unitario)}
+                </span>
+              </p>
+            </div>
+
+            {historialFilas === null ? (
+              <LoadingState texto="Cargando historial…" />
+            ) : historialFilas.length === 0 ? (
+              <EmptyState
+                icon={<IconClock className="h-12 w-12" />}
+                title="Sin cambios registrados"
+                description="Cuando cambies el precio de este producto (individual o por aumento masivo) va a aparecer acá."
+              />
+            ) : (
+              <div className="overflow-x-auto rounded-lg border border-slate-200">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+                    <tr>
+                      <th className="px-3 py-2 font-medium">Fecha</th>
+                      <th className="px-3 py-2 text-right font-medium">Anterior</th>
+                      <th className="px-3 py-2 text-right font-medium">Nuevo</th>
+                      <th className="px-3 py-2 text-right font-medium">Variación</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {historialFilas.map((h) => {
+                      const pct = h.porcentaje_cambio
+                      const subio = (pct ?? 0) >= 0
+                      return (
+                        <tr key={h.id}>
+                          <td className="whitespace-nowrap px-3 py-2 text-slate-600">
+                            {formatFechaHora(h.fecha_cambio)}
+                          </td>
+                          <td className="px-3 py-2 text-right text-slate-500 line-through decoration-slate-300">
+                            {formatARS(h.precio_anterior)}
+                          </td>
+                          <td className="px-3 py-2 text-right font-semibold text-slate-900">
+                            {formatARS(h.precio_nuevo)}
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            {pct !== null && (
+                              <Badge color={subio ? 'green' : 'red'}>
+                                {subio ? '▲' : '▼'} {Math.abs(pct).toFixed(1)}%
+                              </Badge>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
       </Modal>
 
       <ConfirmDialog

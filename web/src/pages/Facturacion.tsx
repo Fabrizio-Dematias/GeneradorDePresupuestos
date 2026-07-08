@@ -21,8 +21,10 @@ import {
 import { IconBanknotes, IconChartBar, IconTrendingUp } from '../components/icons'
 import { useToast } from '../components/Toast'
 
-interface RemitoResumen {
-  fecha: string
+interface FilaRPC {
+  anio: number
+  mes: number
+  cantidad: number
   total: number
 }
 
@@ -36,53 +38,37 @@ interface FilaMensual {
 
 export default function Facturacion() {
   const { toast } = useToast()
-  const [remitos, setRemitos] = useState<RemitoResumen[] | null>(null)
+  const [mensual, setMensual] = useState<FilaRPC[] | null>(null)
   const [anio, setAnio] = useState<string>('todos')
 
   useEffect(() => {
-    supabase
-      .from('remitos')
-      .select('fecha, total')
-      .then(({ data, error }) => {
-        if (error) toast('error', 'No se pudo cargar la facturación')
-        setRemitos((data as RemitoResumen[]) ?? [])
-      })
+    // Agregado por mes en el servidor (excluye remitos anulados):
+    // no se descargan todos los remitos al navegador.
+    supabase.rpc('facturacion_mensual').then(({ data, error }) => {
+      if (error) toast('error', 'No se pudo cargar la facturación')
+      setMensual((data as FilaRPC[]) ?? [])
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const anios = useMemo(() => {
     const set = new Set<number>()
-    for (const r of remitos ?? []) {
-      const y = parseInt(r.fecha?.slice(0, 4) ?? '', 10)
-      if (!isNaN(y)) set.add(y)
-    }
+    for (const f of mensual ?? []) set.add(f.anio)
     return Array.from(set).sort((a, b) => b - a)
-  }, [remitos])
+  }, [mensual])
 
   const filas = useMemo<FilaMensual[]>(() => {
-    const mapa = new Map<string, FilaMensual>()
-    for (const r of remitos ?? []) {
-      const y = parseInt(r.fecha?.slice(0, 4) ?? '', 10)
-      const m = parseInt(r.fecha?.slice(5, 7) ?? '', 10)
-      if (isNaN(y) || isNaN(m)) continue
-      if (anio !== 'todos' && y !== Number(anio)) continue
-      const clave = `${y}-${m}`
-      const fila = mapa.get(clave)
-      if (fila) {
-        fila.remitos += 1
-        fila.total += r.total
-      } else {
-        mapa.set(clave, {
-          anio: y,
-          mes: m,
-          etiqueta: `${MESES[m - 1]} ${y}`,
-          remitos: 1,
-          total: r.total,
-        })
-      }
-    }
-    return Array.from(mapa.values()).sort((a, b) => a.anio - b.anio || a.mes - b.mes)
-  }, [remitos, anio])
+    return (mensual ?? [])
+      .filter((f) => anio === 'todos' || f.anio === Number(anio))
+      .map((f) => ({
+        anio: f.anio,
+        mes: f.mes,
+        etiqueta: `${MESES[f.mes - 1]} ${f.anio}`,
+        remitos: Number(f.cantidad),
+        total: Number(f.total),
+      }))
+      .sort((a, b) => a.anio - b.anio || a.mes - b.mes)
+  }, [mensual, anio])
 
   const totalPeriodo = filas.reduce((acc, f) => acc + f.total, 0)
   const promedioMensual = filas.length > 0 ? totalPeriodo / filas.length : 0
@@ -136,7 +122,7 @@ export default function Facturacion() {
       </div>
 
       <Card title="Facturación por mes">
-        {remitos === null ? (
+        {mensual === null ? (
           <LoadingState />
         ) : filas.length === 0 ? (
           <EmptyState

@@ -33,14 +33,6 @@ const PERIODOS = [
   { valor: 'todo', etiqueta: 'Todo el tiempo', meses: null as number | null },
 ]
 
-interface ItemVenta {
-  codigo: string | null
-  descripcion: string
-  cantidad: number
-  subtotal: number
-  remitos: { fecha: string }
-}
-
 interface Estadistica {
   codigo: string
   descripcion: string
@@ -50,78 +42,73 @@ interface Estadistica {
   porcentaje: number
 }
 
+interface FilaRanking {
+  codigo: string
+  descripcion: string
+  categoria: string
+  cantidad: number
+  facturado: number
+}
+
+interface Resumen {
+  unidades: number
+  productos_distintos: number
+  facturado: number
+}
+
 export default function Reportes() {
   const { toast } = useToast()
-  const [items, setItems] = useState<ItemVenta[] | null>(null)
-  const [categoriasPorCodigo, setCategoriasPorCodigo] = useState<Map<string, string>>(new Map())
+  const [ranking, setRanking] = useState<FilaRanking[] | null>(null)
+  const [resumen, setResumen] = useState<Resumen | null>(null)
   const [periodo, setPeriodo] = useState('todo')
   const [metrica, setMetrica] = useState<'cantidad' | 'facturado'>('cantidad')
   const [limite, setLimite] = useState(10)
 
   useEffect(() => {
     async function cargar() {
-      const [itemsRes, productosRes] = await Promise.all([
-        supabase.from('remito_items').select('codigo, descripcion, cantidad, subtotal, remitos!inner(fecha)'),
-        supabase.from('productos').select('codigo, categoria'),
+      // El ranking y los totales se calculan en el servidor (excluyendo
+      // remitos anulados); no se descargan todos los items al navegador.
+      const config = PERIODOS.find((p) => p.valor === periodo)!
+      let desde: string | null = null
+      if (config.meses !== null) {
+        const d = new Date()
+        d.setMonth(d.getMonth() - config.meses)
+        desde = d.toISOString().slice(0, 10)
+      }
+
+      const [rankingRes, resumenRes] = await Promise.all([
+        supabase.rpc('ranking_productos', { p_desde: desde, p_limite: limite, p_orden: metrica }),
+        supabase.rpc('resumen_ventas', { p_desde: desde }),
       ])
-      if (itemsRes.error || productosRes.error) {
+      if (rankingRes.error || resumenRes.error) {
         toast('error', 'No se pudieron cargar las estadísticas de ventas')
-        setItems([])
+        setRanking([])
+        setResumen(null)
         return
       }
-      setItems((itemsRes.data as unknown as ItemVenta[]) ?? [])
-      const mapa = new Map<string, string>()
-      for (const p of productosRes.data ?? []) {
-        if (p.codigo) mapa.set(p.codigo, p.categoria ?? 'SIN CATEGORÍA')
-      }
-      setCategoriasPorCodigo(mapa)
+      setRanking((rankingRes.data as FilaRanking[]) ?? [])
+      setResumen(((resumenRes.data as Resumen[]) ?? [])[0] ?? null)
     }
     cargar()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [periodo, metrica, limite])
 
-  const { estadisticas, totalUnidades, productosDistintos, totalFacturado } = useMemo(() => {
-    const config = PERIODOS.find((p) => p.valor === periodo)!
-    let desde = '2000-01-01'
-    if (config.meses !== null) {
-      const d = new Date()
-      d.setMonth(d.getMonth() - config.meses)
-      desde = d.toISOString().slice(0, 10)
-    }
+  const totalUnidades = Number(resumen?.unidades ?? 0)
+  const productosDistintos = Number(resumen?.productos_distintos ?? 0)
+  const totalFacturado = Number(resumen?.facturado ?? 0)
 
-    const enPeriodo = (items ?? []).filter((i) => i.remitos.fecha >= desde)
-    const total = enPeriodo.reduce((acc, i) => acc + i.subtotal, 0)
-
-    const porProducto = new Map<string, Estadistica>()
-    for (const item of enPeriodo) {
-      const clave = `${item.codigo ?? ''}|${item.descripcion}`
-      const previo = porProducto.get(clave)
-      if (previo) {
-        previo.cantidad += item.cantidad
-        previo.facturado += item.subtotal
-      } else {
-        porProducto.set(clave, {
-          codigo: item.codigo ?? '—',
-          descripcion: item.descripcion,
-          categoria: (item.codigo && categoriasPorCodigo.get(item.codigo)) || 'SIN CATEGORÍA',
-          cantidad: item.cantidad,
-          facturado: item.subtotal,
-          porcentaje: 0,
-        })
-      }
-    }
-
-    const lista = Array.from(porProducto.values())
-    for (const e of lista) e.porcentaje = total > 0 ? (e.facturado / total) * 100 : 0
-    lista.sort((a, b) => (metrica === 'cantidad' ? b.cantidad - a.cantidad : b.facturado - a.facturado))
-
-    return {
-      estadisticas: lista.slice(0, limite),
-      totalUnidades: enPeriodo.reduce((acc, i) => acc + i.cantidad, 0),
-      productosDistintos: porProducto.size,
-      totalFacturado: total,
-    }
-  }, [items, periodo, metrica, limite, categoriasPorCodigo])
+  const estadisticas = useMemo<Estadistica[]>(
+    () =>
+      (ranking ?? []).map((f) => ({
+        codigo: f.codigo,
+        descripcion: f.descripcion,
+        categoria: f.categoria,
+        cantidad: Number(f.cantidad),
+        facturado: Number(f.facturado),
+        porcentaje: totalFacturado > 0 ? (Number(f.facturado) / totalFacturado) * 100 : 0,
+      })),
+    [ranking, totalFacturado]
+  )
 
   function exportar() {
     const etiqueta = PERIODOS.find((p) => p.valor === periodo)?.etiqueta ?? periodo
@@ -225,7 +212,7 @@ export default function Reportes() {
           </div>
         }
       >
-        {items === null ? (
+        {ranking === null ? (
           <LoadingState />
         ) : estadisticas.length === 0 ? (
           <EmptyState

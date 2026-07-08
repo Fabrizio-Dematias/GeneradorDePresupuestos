@@ -1,6 +1,4 @@
 -- Tabla de perfiles de usuario: mapea username → auth.users
--- Sistema de gestión interno DICOR — acceso anónimo de lectura aceptable
--- ya que RLS protege todas las demás tablas de negocio.
 
 CREATE TABLE IF NOT EXISTS user_profiles (
   id       uuid  PRIMARY KEY REFERENCES auth.users ON DELETE CASCADE,
@@ -11,13 +9,29 @@ CREATE TABLE IF NOT EXISTS user_profiles (
 
 ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
 
--- Lectura pública necesaria para el lookup de username en el login
-CREATE POLICY "login_lookup" ON user_profiles
-  FOR SELECT USING (true);
-
--- Solo el propio usuario puede insertar/actualizar/borrar su perfil
+-- Solo el propio usuario puede leer/insertar/actualizar/borrar su perfil
+DROP POLICY IF EXISTS "solo_propio_perfil" ON user_profiles;
 CREATE POLICY "solo_propio_perfil" ON user_profiles
   FOR ALL USING (auth.uid() = id);
+
+-- El lookup de username → email del login NO usa una policy pública
+-- (eso permitía listar todos los usernames y emails con la anon key).
+-- En su lugar, una función security definer devuelve el email solo
+-- ante un username exacto.
+DROP POLICY IF EXISTS "login_lookup" ON user_profiles;
+
+CREATE OR REPLACE FUNCTION login_email(p_username text)
+RETURNS text
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+    SELECT email FROM user_profiles WHERE username = lower(trim(p_username));
+$$;
+
+REVOKE ALL ON FUNCTION login_email(text) FROM public;
+GRANT EXECUTE ON FUNCTION login_email(text) TO anon, authenticated;
 
 -- ---------------------------------------------------------------
 -- INSTRUCCIONES PARA AGREGAR USUARIOS:

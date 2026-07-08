@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts'
 import { supabase } from '../lib/supabase'
 import { formatARS, formatFecha, MESES } from '../lib/format'
-import { Badge, Card, EmptyState, LoadingState, PageHeader, StatCard, StockPill } from '../components/ui'
+import { descargarBackup } from '../lib/backup'
+import { Badge, Button, Card, EmptyState, LoadingState, PageHeader, StatCard, StockPill } from '../components/ui'
 import {
   IconAlert,
   IconBanknotes,
@@ -11,8 +12,10 @@ import {
   IconCube,
   IconDocumentList,
   IconDocumentPlus,
+  IconDownload,
 } from '../components/icons'
-import { estadoStock, type Producto, type Remito } from '../types'
+import { useToast } from '../components/Toast'
+import type { Remito } from '../types'
 
 interface Stats {
   remitos: number
@@ -26,57 +29,70 @@ interface PuntoMensual {
   total: number
 }
 
+interface FilaMensual {
+  anio: number
+  mes: number
+  cantidad: number
+  total: number
+}
+
+interface FilaReposicion {
+  codigo: string | null
+  descripcion: string
+  stock: number
+  stock_minimo: number
+}
+
 export default function Dashboard() {
+  const { toast } = useToast()
   const [stats, setStats] = useState<Stats | null>(null)
+  const [descargandoBackup, setDescargandoBackup] = useState(false)
   const [ultimos, setUltimos] = useState<Remito[]>([])
   const [serieMensual, setSerieMensual] = useState<PuntoMensual[]>([])
-  const [reposicion, setReposicion] = useState<Producto[]>([])
+  const [reposicion, setReposicion] = useState<FilaReposicion[]>([])
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function cargar() {
       try {
-        const [remitosRes, productosRes, historialRes, ultimosRes, stockRes] = await Promise.all([
-          supabase.from('remitos').select('fecha, total'),
-          supabase.from('productos').select('id', { count: 'exact', head: true }),
-          supabase.from('historial_precios').select('id', { count: 'exact', head: true }),
-          supabase
-            .from('remitos')
-            .select('*')
-            .order('fecha', { ascending: false })
-            .order('numero', { ascending: false })
-            .limit(5),
-          supabase.from('productos').select('codigo, descripcion, stock, stock_minimo'),
-        ])
+        // La facturación viene ya agregada por mes desde el servidor
+        // (excluye anulados); no se descargan todos los remitos.
+        const [mensualRes, productosRes, historialRes, ultimosRes, reposicionRes] =
+          await Promise.all([
+            supabase.rpc('facturacion_mensual'),
+            supabase.from('productos').select('id', { count: 'exact', head: true }),
+            supabase.from('historial_precios').select('id', { count: 'exact', head: true }),
+            supabase
+              .from('remitos')
+              .select('*')
+              .order('fecha', { ascending: false })
+              .order('id', { ascending: false })
+              .limit(5),
+            supabase.rpc('productos_reposicion'),
+          ])
 
-        const errores = [remitosRes.error, productosRes.error, historialRes.error, ultimosRes.error]
+        const errores = [mensualRes.error, productosRes.error, historialRes.error, ultimosRes.error]
           .filter(Boolean)
         if (errores.length) throw errores[0]
 
-        const remitos = remitosRes.data ?? []
+        const mensual = (mensualRes.data as FilaMensual[]) ?? []
         setStats({
-          remitos: remitos.length,
-          facturacion: remitos.reduce((acc, r) => acc + (r.total ?? 0), 0),
+          remitos: mensual.reduce((acc, f) => acc + Number(f.cantidad), 0),
+          facturacion: mensual.reduce((acc, f) => acc + Number(f.total), 0),
           productos: productosRes.count ?? 0,
           cambiosPrecio: historialRes.count ?? 0,
         })
         setUltimos((ultimosRes.data as Remito[]) ?? [])
 
-        // Productos que necesitan reposición (sin stock primero, después bajo el mínimo).
-        // stockRes puede fallar si todavía no se corrió migration_stock.sql: en ese caso se omite.
-        if (!stockRes.error) {
-          const prods = (stockRes.data as Producto[]) ?? []
-          const necesitan = prods
-            .filter((p) => estadoStock(p) !== 'ok')
-            .sort((a, b) => a.stock - b.stock)
-          setReposicion(necesitan)
+        // Reposición: la función puede no existir si falta migration_mejoras2.sql
+        if (!reposicionRes.error) {
+          setReposicion((reposicionRes.data as FilaReposicion[]) ?? [])
         }
 
         // Facturación de los últimos 6 meses calendario
         const porMes = new Map<string, number>()
-        for (const r of remitos) {
-          const clave = (r.fecha ?? '').slice(0, 7) // YYYY-MM
-          if (clave) porMes.set(clave, (porMes.get(clave) ?? 0) + (r.total ?? 0))
+        for (const f of mensual) {
+          porMes.set(`${f.anio}-${String(f.mes).padStart(2, '0')}`, Number(f.total))
         }
         const serie: PuntoMensual[] = []
         const ahora = new Date()
@@ -117,13 +133,34 @@ export default function Dashboard() {
           year: 'numeric',
         })}
         actions={
-          <Link
-            to="/remitos/nuevo"
-            className="inline-flex items-center gap-2 rounded-lg bg-brand-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-800"
-          >
-            <IconDocumentPlus className="h-5 w-5" />
-            Nuevo remito
-          </Link>
+          <>
+            <Button
+              variant="secondary"
+              loading={descargandoBackup}
+              title="Descarga todas las tablas en un archivo JSON"
+              onClick={async () => {
+                setDescargandoBackup(true)
+                try {
+                  const filas = await descargarBackup()
+                  toast('success', `Backup descargado (${filas} registros). Guardalo en un lugar seguro.`)
+                } catch (e: any) {
+                  toast('error', `No se pudo generar el backup: ${e.message ?? e}`)
+                } finally {
+                  setDescargandoBackup(false)
+                }
+              }}
+            >
+              <IconDownload className="h-5 w-5" />
+              Backup
+            </Button>
+            <Link
+              to="/remitos/nuevo"
+              className="inline-flex items-center gap-2 rounded-lg bg-brand-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-800"
+            >
+              <IconDocumentPlus className="h-5 w-5" />
+              Nuevo remito
+            </Link>
+          </>
         }
       />
 
@@ -172,7 +209,7 @@ export default function Dashboard() {
         >
           <ul className="divide-y divide-slate-100">
             {reposicion.slice(0, 5).map((p) => (
-              <li key={p.codigo} className="flex items-center justify-between gap-3 py-2.5">
+              <li key={p.codigo ?? p.descripcion} className="flex items-center justify-between gap-3 py-2.5">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-slate-800">{p.descripcion}</p>
                   <p className="font-mono text-xs text-slate-400">{p.codigo}</p>
@@ -242,7 +279,9 @@ export default function Dashboard() {
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
                     <span className="text-sm font-semibold text-slate-900">{formatARS(r.total)}</span>
-                    <Badge color="green">{r.estado ?? 'Completado'}</Badge>
+                    <Badge color={r.estado === 'Anulado' ? 'red' : 'green'}>
+                      {r.estado ?? 'Completado'}
+                    </Badge>
                   </div>
                 </li>
               ))}

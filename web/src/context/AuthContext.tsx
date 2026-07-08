@@ -44,18 +44,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   async function signIn(usernameInput: string, password: string): Promise<string | null> {
-    const { data: profile, error: profileError } = await supabase
-      .from('user_profiles')
-      .select('email')
-      .eq('username', usernameInput.trim().toLowerCase())
-      .single()
+    // El lookup username → email pasa por una función security definer:
+    // la tabla user_profiles ya no es legible con la anon key.
+    const { data: email, error: lookupError } = await supabase.rpc('login_email', {
+      p_username: usernameInput,
+    })
 
-    if (profileError || !profile) {
+    if (lookupError || !email) {
       return 'Usuario o contraseña incorrectos.'
     }
 
     const { error } = await supabase.auth.signInWithPassword({
-      email: profile.email as string,
+      email: email as string,
       password,
     })
     if (!error) return null

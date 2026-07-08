@@ -30,6 +30,8 @@ export interface RemitoPDFData {
     subtotal: number
   }[]
   total: number
+  /** Si el remito está anulado, se estampa la marca de agua "ANULADO". */
+  anulado?: boolean
 }
 
 const EMPRESA = {
@@ -252,11 +254,36 @@ export async function generarRemitoDoc(data: RemitoPDFData): Promise<jsPDF> {
     didDrawPage: () => dibujarEncabezado(),
   })
 
+  // Marca de agua diagonal para remitos anulados
+  function dibujarMarcaAnulado() {
+    try {
+      // Con opacidad si la versión de jsPDF lo soporta; si no, rosa claro
+      const GState = (doc as any).GState
+      if (GState) {
+        doc.saveGraphicsState()
+        ;(doc as any).setGState(new GState({ opacity: 0.16 }))
+        doc.setTextColor(200, 30, 30)
+      } else {
+        doc.setTextColor(244, 200, 200)
+      }
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(96)
+      doc.text('ANULADO', pageWidth / 2, pageHeight / 2 + 30, { align: 'center', angle: 40 })
+      if (GState) doc.restoreGraphicsState()
+    } catch {
+      // sin marca de agua el PDF se genera igual
+    }
+    doc.setTextColor(0, 0, 0)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(FONT_SIZE)
+  }
+
   // El pie se dibuja al final, cuando ya se sabe cuántas hojas quedaron.
   const totalHojas = doc.getNumberOfPages()
   for (let hoja = 1; hoja <= totalHojas; hoja++) {
     doc.setPage(hoja)
     dibujarPie(hoja, totalHojas)
+    if (data.anulado) dibujarMarcaAnulado()
   }
 
   return doc
