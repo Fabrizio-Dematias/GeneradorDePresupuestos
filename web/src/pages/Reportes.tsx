@@ -12,6 +12,7 @@ import { supabase } from '../lib/supabase'
 import { formatARS } from '../lib/format'
 import {
   Badge,
+  Button,
   Card,
   EmptyState,
   LoadingState,
@@ -20,8 +21,9 @@ import {
   StatCard,
   categoriaBadgeColor,
 } from '../components/ui'
-import { IconChartBar, IconCube, IconBanknotes } from '../components/icons'
+import { IconChartBar, IconCube, IconBanknotes, IconDownload } from '../components/icons'
 import { useToast } from '../components/Toast'
+import { exportarCSV, fechaParaArchivo } from '../lib/csv'
 
 const PERIODOS = [
   { valor: '1m', etiqueta: 'Último mes', meses: 1 },
@@ -121,6 +123,25 @@ export default function Reportes() {
     }
   }, [items, periodo, metrica, limite, categoriasPorCodigo])
 
+  function exportar() {
+    const etiqueta = PERIODOS.find((p) => p.valor === periodo)?.etiqueta ?? periodo
+    exportarCSV(
+      `mas_vendidos_${fechaParaArchivo()}`,
+      ['#', 'Código', 'Descripción', 'Categoría', 'Unidades', 'Facturado', '% del total', 'Período'],
+      estadisticas.map((e, i) => [
+        i + 1,
+        e.codigo,
+        e.descripcion,
+        e.categoria,
+        e.cantidad,
+        e.facturado,
+        Number(e.porcentaje.toFixed(1)),
+        i === 0 ? etiqueta : '',
+      ])
+    )
+    toast('success', `Ranking exportado a CSV (${estadisticas.length} productos).`)
+  }
+
   const datosGrafico = estadisticas
     .slice(0, 10)
     .map((e) => ({
@@ -192,6 +213,15 @@ export default function Reportes() {
               <option value={20}>Top 20</option>
               <option value={50}>Top 50</option>
             </Select>
+            <Button
+              variant="secondary"
+              className="!py-1.5"
+              onClick={exportar}
+              disabled={estadisticas.length === 0}
+            >
+              <IconDownload className="h-4 w-4" />
+              Exportar CSV
+            </Button>
           </div>
         }
       >

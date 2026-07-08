@@ -78,8 +78,9 @@ export default function NuevoRemito() {
   const [indiceCliente, setIndiceCliente] = useState(0)
   const contenedorClienteRef = useRef<HTMLDivElement>(null)
 
-  // Catálogo para el autocompletado de productos
-  const [productos, setProductos] = useState<Producto[]>([])
+  // Sugerencias de productos (búsqueda en el servidor, con debounce)
+  const [sugerencias, setSugerencias] = useState<Producto[]>([])
+  const busquedaReqId = useRef(0)
 
   // Formulario de ítem
   const [busqueda, setBusqueda] = useState('')
@@ -107,22 +108,6 @@ export default function NuevoRemito() {
       reiniciarFormulario()
       cargarNumero()
     }
-
-    supabase
-      .from('productos')
-      .select('*')
-      .order('codigo')
-      .then(({ data, error }) => {
-        if (error) toast('error', 'No se pudo cargar el catálogo de productos')
-        else
-          setProductos(
-            ((data as Producto[]) ?? []).map((p) => ({
-              ...p,
-              stock: p.stock ?? 0,
-              stock_minimo: p.stock_minimo ?? 0,
-            }))
-          )
-      })
 
     supabase
       .from('clientes')
@@ -236,20 +221,44 @@ export default function NuevoRemito() {
   }
 
   // ---------------------------------------------- Autocompletado de productos
-  const sugerencias = useMemo(() => {
-    const q = busqueda.trim().toLowerCase()
-    if (!q) return []
-    const empiezan: Producto[] = []
-    const contienen: Producto[] = []
-    for (const p of productos) {
-      const cod = (p.codigo ?? '').toLowerCase()
-      const desc = p.descripcion.toLowerCase()
-      if (cod.startsWith(q)) empiezan.push(p)
-      else if (cod.includes(q) || desc.includes(q)) contienen.push(p)
-      if (empiezan.length >= 8) break
+  // La búsqueda se hace en el servidor (ilike + límite): no hace falta
+  // descargar el catálogo completo al abrir la página.
+  useEffect(() => {
+    const q = busqueda.trim().replace(/[,()%]/g, ' ').trim()
+    if (!q) {
+      setSugerencias([])
+      return
     }
-    return [...empiezan, ...contienen].slice(0, 8)
-  }, [busqueda, productos])
+    const reqId = ++busquedaReqId.current
+    const timer = setTimeout(async () => {
+      const { data, error } = await supabase
+        .from('productos')
+        .select('*')
+        .or(`codigo.ilike.%${q}%,descripcion.ilike.%${q}%`)
+        .order('codigo')
+        .limit(20)
+      // Ignora respuestas viejas que llegan después de seguir tipeando
+      if (reqId !== busquedaReqId.current) return
+      if (error) {
+        setSugerencias([])
+        return
+      }
+      const ql = q.toLowerCase()
+      const lista = ((data as Producto[]) ?? []).map((p) => ({
+        ...p,
+        stock: p.stock ?? 0,
+        stock_minimo: p.stock_minimo ?? 0,
+      }))
+      // Primero los códigos que empiezan con lo tipeado, como antes
+      lista.sort((a, b) => {
+        const aw = (a.codigo ?? '').toLowerCase().startsWith(ql) ? 0 : 1
+        const bw = (b.codigo ?? '').toLowerCase().startsWith(ql) ? 0 : 1
+        return aw - bw || (a.codigo ?? '').localeCompare(b.codigo ?? '')
+      })
+      setSugerencias(lista.slice(0, 8))
+    }, 250)
+    return () => clearTimeout(timer)
+  }, [busqueda])
 
   function seleccionarProducto(p: Producto) {
     setCodigo(p.codigo ?? '')
@@ -260,7 +269,9 @@ export default function NuevoRemito() {
     cantidadRef.current?.focus()
   }
 
-  function agregarItem() {
+  const [validandoCodigo, setValidandoCodigo] = useState(false)
+
+  async function agregarItem() {
     const cant = parseInt(cantidad, 10)
     const prec = parseFloat(precio)
     const bonif = parseFloat(bonificacion || '0')
@@ -280,6 +291,31 @@ export default function NuevoRemito() {
     if (isNaN(bonif) || bonif < 0 || bonif > 100) {
       toast('error', 'La bonificación debe estar entre 0 y 100.')
       return
+    }
+
+    // Si se cargó un código, tiene que existir en el catálogo: si no, el
+    // descuento de stock no se aplicaría. Un ítem sin código sigue siendo
+    // válido (descripción manual, no descuenta stock).
+    const cod = codigo.trim()
+    if (cod) {
+      setValidandoCodigo(true)
+      const { data, error } = await supabase
+        .from('productos')
+        .select('id')
+        .eq('codigo', cod)
+        .maybeSingle()
+      setValidandoCodigo(false)
+      if (error) {
+        toast('error', 'No se pudo validar el código contra el catálogo. Probá de nuevo.')
+        return
+      }
+      if (!data) {
+        toast(
+          'error',
+          `El código "${cod}" no existe en el catálogo. Elegí un producto del buscador o dejá el código vacío para un ítem manual.`
+        )
+        return
+      }
     }
 
     setItems((prev) => [
@@ -701,7 +737,7 @@ export default function NuevoRemito() {
               </div>
 
               <div className="flex gap-2">
-                <Button onClick={agregarItem}>
+                <Button onClick={agregarItem} loading={validandoCodigo}>
                   <IconPlus className="h-4 w-4" />
                   Agregar al remito
                 </Button>

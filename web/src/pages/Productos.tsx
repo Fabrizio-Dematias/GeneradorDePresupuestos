@@ -15,7 +15,8 @@ import {
   StockPill,
   categoriaBadgeColor,
 } from '../components/ui'
-import { IconCube, IconPencil, IconPercent, IconPlus, IconSearch, IconTrash } from '../components/icons'
+import { IconCube, IconDownload, IconPencil, IconPercent, IconPlus, IconSearch, IconTrash } from '../components/icons'
+import { exportarCSV, fechaParaArchivo } from '../lib/csv'
 import { useToast } from '../components/Toast'
 import { CATEGORIAS_BASE, type Producto } from '../types'
 
@@ -103,6 +104,24 @@ export default function Productos() {
   useEffect(() => {
     setPagina(1)
   }, [busqueda, categoria])
+
+  // ------------------------------------------------ Exportar
+  function exportar() {
+    // Exporta lo filtrado (todas las páginas), no solo la página visible
+    exportarCSV(
+      `productos_${fechaParaArchivo()}`,
+      ['Código', 'Descripción', 'Categoría', 'Precio unitario', 'Stock', 'Stock mínimo'],
+      filtrados.map((p) => [
+        p.codigo,
+        p.descripcion,
+        p.categoria,
+        p.precio_unitario,
+        p.stock,
+        p.stock_minimo,
+      ])
+    )
+    toast('success', `Se exportaron ${filtrados.length} productos a CSV.`)
+  }
 
   // ------------------------------------------------ Crear / editar
   async function guardarProducto(e: FormEvent) {
@@ -243,6 +262,14 @@ export default function Productos() {
         subtitle={productos ? `${productos.length} productos en el catálogo` : undefined}
         actions={
           <>
+            <Button
+              variant="secondary"
+              onClick={exportar}
+              disabled={!productos || filtrados.length === 0}
+            >
+              <IconDownload className="h-5 w-5" />
+              Exportar CSV
+            </Button>
             <Button variant="warning" onClick={() => setModalAumento(true)}>
               <IconPercent className="h-5 w-5" />
               Actualizar precios

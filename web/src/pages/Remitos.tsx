@@ -23,6 +23,7 @@ import {
   IconTrash,
 } from '../components/icons'
 import { useToast } from '../components/Toast'
+import { exportarCSV, fechaParaArchivo } from '../lib/csv'
 import type { Remito, RemitoItem } from '../types'
 
 const POR_PAGINA = 25
@@ -44,6 +45,7 @@ export default function Remitos() {
   const [aEliminar, setAEliminar] = useState<Remito | null>(null)
   const [eliminando, setEliminando] = useState(false)
   const [descargando, setDescargando] = useState<number | null>(null)
+  const [exportando, setExportando] = useState(false)
 
   const hayFiltros = Boolean(busqueda.trim() || desde || hasta)
 
@@ -84,6 +86,49 @@ export default function Remitos() {
   }
 
   const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA))
+
+  /** Exporta a CSV todos los remitos que cumplen los filtros actuales (todas las páginas). */
+  async function exportar() {
+    setExportando(true)
+    try {
+      const LOTE = 1000
+      const filas: Remito[] = []
+      for (let desde_i = 0; ; desde_i += LOTE) {
+        let query = supabase.from('remitos').select('*')
+        const q = busqueda.trim().replace(/[,()%]/g, ' ').trim()
+        if (q) query = query.or(`numero.ilike.%${q}%,cliente_nombre.ilike.%${q}%`)
+        if (desde) query = query.gte('fecha', desde)
+        if (hasta) query = query.lte('fecha', hasta)
+        const { data, error } = await query
+          .order('fecha', { ascending: false })
+          .order('numero', { ascending: false })
+          .range(desde_i, desde_i + LOTE - 1)
+        if (error) throw error
+        filas.push(...((data as Remito[]) ?? []))
+        if (!data || data.length < LOTE) break
+      }
+      exportarCSV(
+        `remitos_${fechaParaArchivo()}`,
+        ['Número', 'Fecha', 'Cliente', 'CUIT', 'Domicilio', 'Cond. IVA', 'Cond. venta', 'Total', 'Estado'],
+        filas.map((r) => [
+          r.numero,
+          r.fecha,
+          r.cliente_nombre,
+          r.cliente_cuit,
+          r.cliente_domicilio,
+          r.condicion_iva,
+          r.condicion_venta,
+          r.total,
+          r.estado ?? 'Completado',
+        ])
+      )
+      toast('success', `Se exportaron ${filas.length} remitos a CSV.`)
+    } catch (e: any) {
+      toast('error', `No se pudo exportar: ${e.message ?? e}`)
+    } finally {
+      setExportando(false)
+    }
+  }
 
   async function abrirDetalle(remito: Remito) {
     setDetalle(remito)
@@ -217,6 +262,17 @@ export default function Remitos() {
                 Limpiar
               </Button>
             )}
+            <Button
+              variant="secondary"
+              className="!py-2"
+              onClick={exportar}
+              loading={exportando}
+              disabled={total === 0}
+              title="Exporta todos los remitos que cumplen los filtros"
+            >
+              <IconDownload className="h-4 w-4" />
+              Exportar CSV
+            </Button>
           </div>
         </div>
 

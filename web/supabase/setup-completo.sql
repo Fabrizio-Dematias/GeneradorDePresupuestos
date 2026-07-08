@@ -158,6 +158,7 @@ as $$
 declare
     v_id bigint;
     v_numero text;
+    v_codigos_invalidos text;
     i jsonb;
     v_cant integer;
     v_prod_id bigint;
@@ -166,6 +167,18 @@ declare
     v_anterior integer;
     v_nuevo integer;
 begin
+    -- Valida que todos los códigos cargados existan en el catálogo:
+    -- un código inexistente no descontaría stock y ensucia los reportes.
+    -- Los ítems sin código siguen permitidos (descripción manual).
+    select string_agg(distinct elem->>'codigo', ', ')
+    into v_codigos_invalidos
+    from jsonb_array_elements(p_items) as elem
+    where coalesce(elem->>'codigo', '') <> ''
+      and not exists (select 1 from productos p where p.codigo = elem->>'codigo');
+    if v_codigos_invalidos is not null then
+        raise exception 'Estos códigos no existen en el catálogo: %. Corregilos o dejá el código vacío.', v_codigos_invalidos;
+    end if;
+
     -- Serializa la asignación del número entre transacciones concurrentes
     perform pg_advisory_xact_lock(hashtext('remitos_numero'));
     v_numero := proximo_numero_remito();
@@ -278,6 +291,7 @@ language plpgsql
 as $$
 declare
     v_numero text;
+    v_codigos_invalidos text;
     it record;
     i jsonb;
     v_cant integer;
@@ -290,6 +304,16 @@ begin
     select numero into v_numero from remitos where id = p_remito_id for update;
     if not found then
         raise exception 'Remito % no encontrado', p_remito_id;
+    end if;
+
+    -- Misma validación de códigos que en crear_remito, antes de tocar nada
+    select string_agg(distinct elem->>'codigo', ', ')
+    into v_codigos_invalidos
+    from jsonb_array_elements(p_items) as elem
+    where coalesce(elem->>'codigo', '') <> ''
+      and not exists (select 1 from productos p where p.codigo = elem->>'codigo');
+    if v_codigos_invalidos is not null then
+        raise exception 'Estos códigos no existen en el catálogo: %. Corregilos o dejá el código vacío.', v_codigos_invalidos;
     end if;
 
     for it in
