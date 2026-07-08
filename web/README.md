@@ -20,41 +20,33 @@ Funciona desde cualquier dispositivo (PC, tablet, celular) y usa
    (guardala) y la región **South America (São Paulo)**.
 3. Esperá 1-2 minutos a que el proyecto se cree.
 
-### 2. Crear las tablas y cargar tus datos
+### 2. Crear las tablas
 
 1. En el menú lateral de Supabase: **SQL Editor** → **New query**.
 2. Copiá y pegá **todo** el contenido de
    [`supabase/setup-completo.sql`](supabase/setup-completo.sql) → **Run**.
-   Eso crea las tablas, la seguridad y carga el catálogo completo de productos
-   y los remitos del sistema de escritorio, todo en un solo paso.
+   Es el único archivo SQL del proyecto: crea todas las tablas, la seguridad
+   (RLS) y las funciones. Solo estructura, sin datos.
 
-> Si preferís hacerlo en dos pasos, están los archivos separados:
-> `supabase/migration.sql` (estructura) y `supabase/seed.sql` (datos).
-
-> 💡 **¿Tenés datos más nuevos en tu computadora?** El seed del repositorio sale del
-> backup `dicor.db` de marzo 2026. Si tu base local tiene remitos o productos más nuevos,
-> regenerá el seed con tu base y volvé a ejecutarlo (reemplaza los datos):
->
-> ```bash
-> python3 scripts/export_sqlite_to_supabase.py /ruta/a/tu/dicor.db web/supabase/seed.sql
-> ```
-> (la base de la app de escritorio está en la carpeta desde donde la ejecutabas)
-
-> 📦 **¿Ya tenías el sistema funcionando y querés activar el control de stock?**
-> No hace falta rehacer nada: en **SQL Editor → New query** pegá y ejecutá el
-> contenido de [`supabase/migration_stock.sql`](supabase/migration_stock.sql).
-> Agrega el stock a tus productos (arranca en 0) sin tocar el resto de los datos.
-> Después, en la sección **Stock** de la web, cargá el stock inicial de cada
-> producto con un **Ingreso**; a partir de ahí los remitos lo descuentan solos.
+> 📦 **¿Estás recreando la base?** Los datos se restauran desde el archivo de
+> backup JSON que se descarga con el botón **Backup** del Panel de la web.
 
 ### 3. Crear tu usuario
 
 1. En Supabase: **Authentication → Users → Add user → Create new user**.
 2. Email: el tuyo. Contraseña: la que quieras usar para entrar al sistema.
 3. Tildá **Auto Confirm User** y creá el usuario.
+4. Copiá el **UUID** del usuario recién creado y en **SQL Editor** ejecutá
+   (con tu nombre de usuario en minúsculas):
 
-Con ese email y contraseña vas a entrar a la web. Nadie más puede ver tus datos:
-todas las tablas están protegidas y solo usuarios autenticados pueden acceder.
+   ```sql
+   insert into user_profiles (id, username, email)
+   values ('<UUID>', 'tuusuario', 'tu@email.com');
+   ```
+
+Con ese usuario y contraseña vas a entrar a la web. Nadie más puede ver tus
+datos: todas las tablas están protegidas y solo usuarios autenticados pueden
+acceder.
 
 ### 4. Publicar la web en Vercel
 
