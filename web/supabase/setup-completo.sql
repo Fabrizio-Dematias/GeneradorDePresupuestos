@@ -343,6 +343,56 @@ begin
 end;
 $$;
 
+-- Restaura un remito anulado (des-anular): vuelve a descontar el stock
+-- con auditoría y devuelve el remito al estado 'Completado'.
+create or replace function restaurar_remito(p_remito_id bigint)
+returns void
+language plpgsql
+as $$
+declare
+    v_numero text;
+    v_estado text;
+    it record;
+    v_prod_id bigint;
+    v_codigo text;
+    v_desc text;
+    v_anterior integer;
+    v_nuevo integer;
+begin
+    select numero, coalesce(estado, 'Completado')
+    into v_numero, v_estado
+    from remitos where id = p_remito_id for update;
+    if not found then
+        raise exception 'Remito % no encontrado', p_remito_id;
+    end if;
+    if v_estado <> 'Anulado' then
+        raise exception 'El remito % no está anulado', v_numero;
+    end if;
+
+    for it in
+        select codigo, sum(cantidad) as cantidad
+        from remito_items
+        where remito_id = p_remito_id and coalesce(codigo, '') <> '' and cantidad > 0
+        group by codigo
+    loop
+        update productos
+        set stock = stock - it.cantidad
+        where codigo = it.codigo
+        returning id, codigo, descripcion, stock + it.cantidad, stock
+        into v_prod_id, v_codigo, v_desc, v_anterior, v_nuevo;
+        if found then
+            insert into movimientos_stock (producto_id, producto_codigo, producto_descripcion,
+                                           tipo, cantidad, stock_anterior, stock_nuevo, motivo, remito_id)
+            values (v_prod_id, v_codigo, v_desc,
+                    'egreso', it.cantidad, v_anterior, v_nuevo,
+                    'Restauración · remito ' || v_numero, p_remito_id);
+        end if;
+    end loop;
+
+    update remitos set estado = 'Completado' where id = p_remito_id;
+end;
+$$;
+
 -- Edita un remito: repone el stock de los items originales, reemplaza los
 -- items y datos (el número no cambia) y descuenta el stock nuevo.
 create or replace function actualizar_remito(p_remito_id bigint, p_remito jsonb, p_items jsonb)

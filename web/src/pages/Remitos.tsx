@@ -20,6 +20,7 @@ import {
   IconDownload,
   IconEye,
   IconPencil,
+  IconRefresh,
   IconSearch,
   IconTrash,
 } from '../components/icons'
@@ -47,6 +48,8 @@ export default function Remitos() {
   const [eliminando, setEliminando] = useState(false)
   const [aAnular, setAAnular] = useState<Remito | null>(null)
   const [anulando, setAnulando] = useState(false)
+  const [aRestaurar, setARestaurar] = useState<Remito | null>(null)
+  const [restaurando, setRestaurando] = useState(false)
   const [descargando, setDescargando] = useState<number | null>(null)
   const [exportando, setExportando] = useState(false)
 
@@ -190,6 +193,21 @@ export default function Remitos() {
     }
     toast('success', `Remito ${aAnular.numero} anulado y stock repuesto.`)
     setAAnular(null)
+    setDetalle(null)
+    cargar()
+  }
+
+  async function restaurar() {
+    if (!aRestaurar) return
+    setRestaurando(true)
+    const { error } = await supabase.rpc('restaurar_remito', { p_remito_id: aRestaurar.id })
+    setRestaurando(false)
+    if (error) {
+      toast('error', `No se pudo restaurar el remito: ${error.message}`)
+      return
+    }
+    toast('success', `Remito ${aRestaurar.numero} restaurado: vuelve a estar vigente y el stock se descontó.`)
+    setARestaurar(null)
     setDetalle(null)
     cargar()
   }
@@ -369,13 +387,21 @@ export default function Remitos() {
                           >
                             <IconDownload className="h-5 w-5" />
                           </button>
-                          {r.estado !== 'Anulado' && (
+                          {r.estado !== 'Anulado' ? (
                             <button
                               onClick={() => setAAnular(r)}
                               className="rounded-lg p-2 text-slate-400 transition hover:bg-amber-50 hover:text-amber-600"
                               title="Anular (repone stock, el remito queda en la historia)"
                             >
                               <IconBan className="h-5 w-5" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => setARestaurar(r)}
+                              className="rounded-lg p-2 text-slate-400 transition hover:bg-emerald-50 hover:text-emerald-600"
+                              title="Restaurar (des-anular: vuelve a descontar el stock)"
+                            >
+                              <IconRefresh className="h-5 w-5" />
                             </button>
                           )}
                           <button
@@ -437,8 +463,8 @@ export default function Remitos() {
                         <IconBan className="h-4 w-4 text-amber-500" />
                       </Button>
                     ) : (
-                      <Button variant="secondary" className="!px-3 !py-1.5" onClick={() => setAEliminar(r)}>
-                        <IconTrash className="h-4 w-4 text-red-500" />
+                      <Button variant="secondary" className="!px-3 !py-1.5" onClick={() => setARestaurar(r)}>
+                        <IconRefresh className="h-4 w-4 text-emerald-600" />
                       </Button>
                     )}
                   </div>
@@ -468,7 +494,7 @@ export default function Remitos() {
               <Button variant="secondary" onClick={() => setAEliminar(detalle)}>
                 <IconTrash className="h-4 w-4 text-red-500" /> Eliminar
               </Button>
-              {detalle.estado !== 'Anulado' && (
+              {detalle.estado !== 'Anulado' ? (
                 <>
                   <Button variant="secondary" onClick={() => setAAnular(detalle)}>
                     <IconBan className="h-4 w-4 text-amber-500" /> Anular
@@ -477,6 +503,10 @@ export default function Remitos() {
                     <IconPencil className="h-4 w-4" /> Editar
                   </Button>
                 </>
+              ) : (
+                <Button variant="secondary" onClick={() => setARestaurar(detalle)}>
+                  <IconRefresh className="h-4 w-4 text-emerald-600" /> Restaurar
+                </Button>
               )}
               <Button onClick={() => descargarPDF(detalle)} loading={descargando === detalle.id}>
                 <IconDownload className="h-4 w-4" /> Descargar PDF
@@ -573,6 +603,24 @@ export default function Remitos() {
         loading={anulando}
         onConfirm={anular}
         onCancel={() => setAAnular(null)}
+      />
+
+      <ConfirmDialog
+        open={aRestaurar !== null}
+        title="Restaurar remito"
+        confirmLabel="Restaurar"
+        confirmVariant="primary"
+        message={
+          <p>
+            ¿Restaurar el remito <strong className="font-mono">{aRestaurar?.numero}</strong> de{' '}
+            <strong>{aRestaurar?.cliente_nombre}</strong>? Vuelve al estado{' '}
+            <strong>Completado</strong>, el stock de sus productos se descuenta de nuevo y
+            se vuelve a contar en la facturación.
+          </p>
+        }
+        loading={restaurando}
+        onConfirm={restaurar}
+        onCancel={() => setARestaurar(null)}
       />
 
       <ConfirmDialog

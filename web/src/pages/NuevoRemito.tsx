@@ -830,8 +830,8 @@ export default function NuevoRemito() {
                 </ul>
               )}
 
-              <div className="mt-4 flex items-center justify-between rounded-xl bg-slate-900 px-4 py-3.5">
-                <span className="text-sm font-medium text-slate-300">TOTAL</span>
+              <div className="mt-4 flex items-center justify-between rounded-xl bg-gradient-to-r from-brand-700 to-emerald-700 px-4 py-3.5 shadow-lg shadow-brand-600/20">
+                <span className="text-sm font-medium text-brand-100">TOTAL</span>
                 <span className="text-xl font-bold text-white">{formatARS(total)}</span>
               </div>
 

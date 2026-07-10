@@ -22,7 +22,7 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-slate-900 px-4">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-brand-950 via-[#06231a] to-emerald-950 px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-4">
           <div className="rounded-2xl bg-white p-3 shadow-lg">
@@ -30,16 +30,16 @@ export default function Login() {
           </div>
           <div className="text-center">
             <h1 className="text-xl font-bold text-white">Sistema de Gestión</h1>
-            <p className="mt-1 text-sm text-slate-400">Remitos y productos · DICOR</p>
+            <p className="mt-1 text-sm text-brand-200/70">Remitos y productos · DICOR</p>
           </div>
         </div>
 
         <form
           onSubmit={onSubmit}
-          className="space-y-4 rounded-2xl border border-slate-700/60 bg-slate-800/60 p-6 shadow-xl backdrop-blur"
+          className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.06] p-6 shadow-xl backdrop-blur"
         >
           <div>
-            <label htmlFor="username" className="mb-1.5 block text-sm font-medium text-slate-200">
+            <label htmlFor="username" className="mb-1.5 block text-sm font-medium text-brand-100">
               Usuario
             </label>
             <Input
@@ -54,7 +54,7 @@ export default function Login() {
           </div>
 
           <div>
-            <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-slate-200">
+            <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-brand-100">
               Contraseña
             </label>
             <div className="relative">
@@ -96,7 +96,7 @@ export default function Login() {
           </Button>
         </form>
 
-        <p className="mt-6 text-center text-xs text-slate-500">
+        <p className="mt-6 text-center text-xs text-brand-200/50">
           DICOR Carbones y Repuestos · Córdoba, Argentina
         </p>
       </div>

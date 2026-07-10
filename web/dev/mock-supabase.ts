@@ -22,7 +22,7 @@ const productos = [
 const remitos = [
   { id: 23, numero: '0001-008', fecha: '2026-06-08', cliente_nombre: 'Antonio Arone', cliente_domicilio: '', cliente_cuit: '20-11222333-4', condicion_iva: 'Resp. Inscripto', condicion_venta: 'Cuenta Corriente', total: 215918.87, estado: 'Completado', ruta_pdf: 'remito_Antonio_Arone_0001-008.pdf', fecha_creacion: '2026-06-08T22:21:22' },
   { id: 22, numero: '0001-007', fecha: '2026-05-15', cliente_nombre: 'Gustavo Clara', cliente_domicilio: 'Av. Colón 1234, Córdoba', cliente_cuit: '', condicion_iva: 'Consumidor Final', condicion_venta: 'Contado', total: 2513843.97, estado: 'Completado', ruta_pdf: '', fecha_creacion: '2026-05-15T20:41:35' },
-  { id: 21, numero: '0001-006', fecha: '2026-05-12', cliente_nombre: 'Gigena - Electromundo', cliente_domicilio: '', cliente_cuit: '', condicion_iva: 'Monotributo', condicion_venta: 'Contado', total: 67861.26, estado: 'Completado', ruta_pdf: '', fecha_creacion: '2026-05-12T20:24:40' },
+  { id: 21, numero: '0001-006', fecha: '2026-05-12', cliente_nombre: 'Gigena - Electromundo', cliente_domicilio: '', cliente_cuit: '', condicion_iva: 'Monotributo', condicion_venta: 'Contado', total: 67861.26, estado: 'Anulado', ruta_pdf: '', fecha_creacion: '2026-05-12T20:24:40' },
   { id: 19, numero: '0001-005', fecha: '2026-04-26', cliente_nombre: 'Daniel Ferrero', cliente_domicilio: 'San Vicente', cliente_cuit: '', condicion_iva: 'Consumidor Final', condicion_venta: 'Contado', total: 213024.85, estado: 'Completado', ruta_pdf: '', fecha_creacion: '2026-04-26T22:30:57' },
   { id: 18, numero: '0001-004', fecha: '2026-03-25', cliente_nombre: 'Fernando Martinez', cliente_domicilio: '', cliente_cuit: '', condicion_iva: 'Consumidor Final', condicion_venta: 'Contado', total: 36896.94, estado: 'Completado', ruta_pdf: '', fecha_creacion: '2026-03-25T18:18:37' },
   { id: 7, numero: '0001-003', fecha: '2026-02-10', cliente_nombre: 'Gustavo Clara', cliente_domicilio: '', cliente_cuit: '', condicion_iva: 'Consumidor Final', condicion_venta: 'Contado', total: 911576.26, estado: 'Completado', ruta_pdf: '', fecha_creacion: '2026-02-10T15:42:37' },
@@ -68,14 +68,55 @@ const movimientos_stock = [
   { id: 1, producto_id: 541, producto_codigo: '401', producto_descripcion: 'TAL modo P8020 /P5411', tipo: 'ingreso', cantidad: 58, stock_anterior: 0, stock_nuevo: 58, motivo: 'Stock inicial', remito_id: null, fecha: '2026-02-01T08:30:00' },
 ]
 
-const DB: Record<string, any[]> = { productos, remitos, remito_items, historial_precios, movimientos_stock }
+const clientes = [
+  { id: 1, nombre: 'Antonio Arone', domicilio: 'Bv. Los Andes 1450, Córdoba', cuit: '20112223334', condicion_iva: 'Resp. Inscripto', condicion_venta: 'Cuenta Corriente', fecha_creacion: '2026-06-01T10:00:00' },
+  { id: 2, nombre: 'Gustavo Clara', domicilio: 'Av. Colón 1234, Córdoba', cuit: '', condicion_iva: 'Consumidor Final', condicion_venta: 'Contado', fecha_creacion: '2026-06-01T10:00:00' },
+  { id: 3, nombre: 'Gigena - Electromundo', domicilio: 'Rivadavia 89, Villa María', cuit: '27334445556', condicion_iva: 'Monotributo', condicion_venta: 'Contado', fecha_creacion: '2026-06-10T10:00:00' },
+]
+
+const user_profiles = [
+  { id: 'u1', username: 'fabrizio', email: 'dicorcarbones@gmail.com' },
+]
+
+const DB: Record<string, any[]> = { productos, remitos, remito_items, historial_precios, movimientos_stock, clientes, user_profiles }
 
 function crearBuilder(table: string) {
   const state = {
     head: false,
+    single: false,
     eqs: [] as [string, any][],
+    gtes: [] as [string, any][],
+    ltes: [] as [string, any][],
+    ors: [] as string[],
     orders: [] as [string, boolean][],
     limit: undefined as number | undefined,
+    range: undefined as [number, number] | undefined,
+  }
+  function resolver() {
+    let rows = [...(DB[table] ?? [])]
+    for (const [c, v] of state.eqs) rows = rows.filter((r) => r[c] === v)
+    for (const [c, v] of state.gtes) rows = rows.filter((r) => r[c] >= v)
+    for (const [c, v] of state.ltes) rows = rows.filter((r) => r[c] <= v)
+    // Soporta el formato "col.ilike.%q%,col2.ilike.%q%"
+    for (const expr of state.ors) {
+      const condiciones = expr.split(',').map((c) => c.split('.ilike.'))
+      rows = rows.filter((r) =>
+        condiciones.some(([col, patron]) => {
+          const q = (patron ?? '').replace(/%/g, '').toLowerCase()
+          return String(r[col] ?? '').toLowerCase().includes(q)
+        })
+      )
+    }
+    const total = rows.length
+    for (const [c, asc] of [...state.orders].reverse()) {
+      rows.sort((a, b) => (a[c] < b[c] ? (asc ? -1 : 1) : a[c] > b[c] ? (asc ? 1 : -1) : 0))
+    }
+    if (state.range) rows = rows.slice(state.range[0], state.range[1] + 1)
+    if (state.limit) rows = rows.slice(0, state.limit)
+    if (state.single) {
+      return { data: rows[0] ?? null, error: rows[0] ? null : { message: 'no rows' }, count: total }
+    }
+    return { data: state.head ? null : rows, error: null, count: total }
   }
   const api: any = {
     select(_cols?: string, opts?: { count?: string; head?: boolean }) {
@@ -90,8 +131,32 @@ function crearBuilder(table: string) {
       state.limit = n
       return api
     },
+    range(from: number, to: number) {
+      state.range = [from, to]
+      return api
+    },
     eq(col: string, val: any) {
       state.eqs.push([col, val])
+      return api
+    },
+    gte(col: string, val: any) {
+      state.gtes.push([col, val])
+      return api
+    },
+    lte(col: string, val: any) {
+      state.ltes.push([col, val])
+      return api
+    },
+    or(expr: string) {
+      state.ors.push(expr)
+      return api
+    },
+    single() {
+      state.single = true
+      return api
+    },
+    maybeSingle() {
+      state.single = true
       return api
     },
     insert() {
@@ -104,33 +169,90 @@ function crearBuilder(table: string) {
       return api
     },
     then(resolve: (r: any) => void) {
-      let rows = [...(DB[table] ?? [])]
-      for (const [c, v] of state.eqs) rows = rows.filter((r) => r[c] === v)
-      for (const [c, asc] of [...state.orders].reverse()) {
-        rows.sort((a, b) => (a[c] < b[c] ? (asc ? -1 : 1) : a[c] > b[c] ? (asc ? 1 : -1) : 0))
-      }
-      if (state.limit) rows = rows.slice(0, state.limit)
-      resolve({
-        data: state.head ? null : rows,
-        error: null,
-        count: (DB[table] ?? []).length,
-      })
+      resolve(resolver())
     },
   }
   return api
 }
 
 const fakeSession = {
-  user: { email: 'dicorcarbones@gmail.com' },
+  user: { id: 'u1', email: 'dicorcarbones@gmail.com' },
 }
 
 const sinSesion = typeof window !== 'undefined' && window.location.search.includes('nologin')
+
+const noAnulados = () => remitos.filter((r) => r.estado !== 'Anulado')
+
+/** Réplica en memoria de las funciones SQL de agregación. */
+function ejecutarRPC(nombre: string, args: any = {}) {
+  switch (nombre) {
+    case 'proximo_numero_remito':
+      return '0001-009'
+    case 'login_email':
+      return user_profiles[0].email
+    case 'facturacion_mensual': {
+      const mapa = new Map<string, { anio: number; mes: number; cantidad: number; total: number }>()
+      for (const r of noAnulados()) {
+        const anio = Number(r.fecha.slice(0, 4))
+        const mes = Number(r.fecha.slice(5, 7))
+        const clave = `${anio}-${mes}`
+        const fila = mapa.get(clave) ?? { anio, mes, cantidad: 0, total: 0 }
+        fila.cantidad += 1
+        fila.total += r.total
+        mapa.set(clave, fila)
+      }
+      return Array.from(mapa.values()).sort((a, b) => a.anio - b.anio || a.mes - b.mes)
+    }
+    case 'productos_reposicion':
+      return productos
+        .filter((p) => p.stock <= 0 || (p.stock_minimo > 0 && p.stock <= p.stock_minimo))
+        .sort((a, b) => a.stock - b.stock)
+    case 'ranking_productos': {
+      const idsValidos = new Set(noAnulados().filter((r) => !args.p_desde || r.fecha >= args.p_desde).map((r) => r.id))
+      const mapa = new Map<string, any>()
+      for (const it of remito_items) {
+        if (!idsValidos.has(it.remito_id)) continue
+        const clave = `${it.codigo ?? ''}|${it.descripcion}`
+        const fila = mapa.get(clave) ?? {
+          codigo: it.codigo ?? '—',
+          descripcion: it.descripcion,
+          categoria: productos.find((p) => p.codigo === it.codigo)?.categoria ?? 'SIN CATEGORÍA',
+          cantidad: 0,
+          facturado: 0,
+        }
+        fila.cantidad += it.cantidad
+        fila.facturado += it.subtotal
+        mapa.set(clave, fila)
+      }
+      const lista = Array.from(mapa.values())
+      lista.sort((a, b) => (args.p_orden === 'facturado' ? b.facturado - a.facturado : b.cantidad - a.cantidad))
+      return lista.slice(0, args.p_limite ?? 10)
+    }
+    case 'resumen_ventas': {
+      const idsValidos = new Set(noAnulados().filter((r) => !args.p_desde || r.fecha >= args.p_desde).map((r) => r.id))
+      const items = remito_items.filter((it) => idsValidos.has(it.remito_id))
+      return [
+        {
+          unidades: items.reduce((a, i) => a + i.cantidad, 0),
+          productos_distintos: new Set(items.map((i) => `${i.codigo ?? ''}|${i.descripcion}`)).size,
+          facturado: items.reduce((a, i) => a + i.subtotal, 0),
+        },
+      ]
+    }
+    // Mutaciones: no persisten nada en el mock
+    case 'crear_remito':
+    case 'actualizar_remito':
+      return { id: 99, numero: '0001-009' }
+    default:
+      return null
+  }
+}
 
 export const isSupabaseConfigured = true
 
 export const supabase: any = {
   from: crearBuilder,
-  rpc: async () => ({ data: productos.length, error: null }),
+  rpc: async (nombre: string, args?: any) => ({ data: ejecutarRPC(nombre, args), error: null }),
   auth: {
     getSession: async () => ({ data: { session: sinSesion ? null : fakeSession } }),
     onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),

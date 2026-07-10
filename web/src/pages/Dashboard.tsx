@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { ReactNode, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts'
 import { supabase } from '../lib/supabase'
@@ -7,6 +7,7 @@ import { descargarBackup } from '../lib/backup'
 import { Badge, Button, Card, EmptyState, LoadingState, PageHeader, StatCard, StockPill } from '../components/ui'
 import {
   IconAlert,
+  IconArchiveBox,
   IconBanknotes,
   IconClock,
   IconCube,
@@ -15,6 +16,7 @@ import {
   IconDownload,
 } from '../components/icons'
 import { useToast } from '../components/Toast'
+import { useAuth } from '../context/AuthContext'
 import type { Remito } from '../types'
 
 interface Stats {
@@ -43,8 +45,46 @@ interface FilaReposicion {
   stock_minimo: number
 }
 
+function saludoSegunHora(): string {
+  const h = new Date().getHours()
+  if (h < 12) return 'Buen día'
+  if (h < 20) return 'Buenas tardes'
+  return 'Buenas noches'
+}
+
+/** Tarjeta de acceso rápido a las secciones más usadas. */
+function AccesoRapido({
+  to,
+  icon,
+  label,
+  desc,
+}: {
+  to: string
+  icon: ReactNode
+  label: string
+  desc: string
+}) {
+  return (
+    <Link
+      to={to}
+      className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-brand-300 hover:shadow-md"
+    >
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-emerald-600 text-white shadow-sm">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="truncate text-sm font-semibold text-slate-800 group-hover:text-brand-700">
+          {label}
+        </p>
+        <p className="truncate text-xs text-slate-500">{desc}</p>
+      </div>
+    </Link>
+  )
+}
+
 export default function Dashboard() {
   const { toast } = useToast()
+  const { username } = useAuth()
   const [stats, setStats] = useState<Stats | null>(null)
   const [descargandoBackup, setDescargandoBackup] = useState(false)
   const [ultimos, setUltimos] = useState<Remito[]>([])
@@ -125,7 +165,7 @@ export default function Dashboard() {
   return (
     <div>
       <PageHeader
-        title="Panel de control"
+        title={username ? `${saludoSegunHora()}, ${username}` : saludoSegunHora()}
         subtitle={new Date().toLocaleDateString('es-AR', {
           weekday: 'long',
           day: 'numeric',
@@ -163,6 +203,34 @@ export default function Dashboard() {
           </>
         }
       />
+
+      {/* Accesos rápidos a lo más usado */}
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <AccesoRapido
+          to="/remitos/nuevo"
+          icon={<IconDocumentPlus className="h-5 w-5" />}
+          label="Nuevo remito"
+          desc="Cargar una venta"
+        />
+        <AccesoRapido
+          to="/remitos"
+          icon={<IconDocumentList className="h-5 w-5" />}
+          label="Remitos"
+          desc="Buscar y reimprimir"
+        />
+        <AccesoRapido
+          to="/productos"
+          icon={<IconCube className="h-5 w-5" />}
+          label="Productos"
+          desc="Catálogo y precios"
+        />
+        <AccesoRapido
+          to="/stock"
+          icon={<IconArchiveBox className="h-5 w-5" />}
+          label="Stock"
+          desc="Inventario y movimientos"
+        />
+      </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard

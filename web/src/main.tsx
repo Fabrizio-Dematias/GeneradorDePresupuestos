@@ -1,15 +1,17 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
-import { LOGO_DATA_URL } from './lib/logo'
 import './index.css'
 
-// Favicon con el logo embebido (no hay archivos binarios en el repo)
-const favicon = document.createElement('link')
-favicon.rel = 'icon'
-favicon.type = 'image/png'
-favicon.href = LOGO_DATA_URL
-document.head.appendChild(favicon)
+// Registra el service worker (hace la app instalable como PWA).
+// Solo en producción: en desarrollo interferiría con el hot reload.
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      /* sin SW la app funciona igual, solo no es instalable */
+    })
+  })
+}
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

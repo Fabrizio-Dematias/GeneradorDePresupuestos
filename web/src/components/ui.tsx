@@ -14,7 +14,7 @@ type Variant = 'primary' | 'secondary' | 'danger' | 'warning' | 'ghost'
 
 const variantClasses: Record<Variant, string> = {
   primary:
-    'bg-brand-700 text-white hover:bg-brand-800 focus-visible:ring-brand-600 shadow-sm',
+    'bg-gradient-to-r from-brand-600 to-emerald-600 text-white hover:from-brand-700 hover:to-emerald-700 focus-visible:ring-brand-500 shadow-sm',
   secondary:
     'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 focus-visible:ring-slate-400 shadow-sm',
   danger: 'bg-red-600 text-white hover:bg-red-700 focus-visible:ring-red-500 shadow-sm',
@@ -257,12 +257,12 @@ export function StatCard({
   hint?: ReactNode
 }) {
   const tints = {
-    brand: 'bg-brand-50 text-brand-700',
-    blue: 'bg-blue-50 text-blue-600',
-    amber: 'bg-amber-50 text-amber-600',
-    violet: 'bg-violet-50 text-violet-600',
-    red: 'bg-red-50 text-red-600',
-    emerald: 'bg-emerald-50 text-emerald-600',
+    brand: 'bg-gradient-to-br from-brand-500 to-emerald-600 text-white',
+    blue: 'bg-gradient-to-br from-sky-500 to-blue-600 text-white',
+    amber: 'bg-gradient-to-br from-amber-400 to-orange-500 text-white',
+    violet: 'bg-gradient-to-br from-violet-500 to-purple-600 text-white',
+    red: 'bg-gradient-to-br from-red-500 to-rose-600 text-white',
+    emerald: 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white',
   }
   return (
     <div className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -425,6 +425,7 @@ export function ConfirmDialog({
   title,
   message,
   confirmLabel = 'Eliminar',
+  confirmVariant = 'danger',
   loading,
   onConfirm,
   onCancel,
@@ -433,10 +434,12 @@ export function ConfirmDialog({
   title: string
   message: ReactNode
   confirmLabel?: string
+  confirmVariant?: Variant
   loading?: boolean
   onConfirm: () => void
   onCancel: () => void
 }) {
+  const esPeligro = confirmVariant === 'danger'
   return (
     <Modal
       open={open}
@@ -447,14 +450,18 @@ export function ConfirmDialog({
           <Button variant="secondary" onClick={onCancel} disabled={loading}>
             Cancelar
           </Button>
-          <Button variant="danger" onClick={onConfirm} loading={loading}>
+          <Button variant={confirmVariant} onClick={onConfirm} loading={loading}>
             {confirmLabel}
           </Button>
         </>
       }
     >
       <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600">
+        <div
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+            esPeligro ? 'bg-red-50 text-red-600' : 'bg-brand-50 text-brand-700'
+          }`}
+        >
           <IconAlert className="h-5 w-5" />
         </div>
         <div className="text-sm text-slate-600">{message}</div>
