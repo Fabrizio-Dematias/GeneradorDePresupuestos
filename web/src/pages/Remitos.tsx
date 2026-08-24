@@ -250,7 +250,14 @@ export default function Remitos() {
     <div>
       <PageHeader
         title="Remitos"
-        subtitle={remitos ? `${total} remitos emitidos` : undefined}
+        // Con el total solo no se entendía que la lista viene paginada
+        subtitle={
+          remitos
+            ? totalPaginas > 1
+              ? `${total} remitos emitidos · viendo la página ${pagina} de ${totalPaginas}`
+              : `${total} remitos emitidos`
+            : undefined
+        }
         actions={
           <Link
             to="/remitos/nuevo"

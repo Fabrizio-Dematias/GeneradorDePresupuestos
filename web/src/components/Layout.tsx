@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { LOGO_DATA_URL } from '../lib/logo'
-import { VERSION_CORTA, versionDetallada } from '../lib/version'
+import { ES_DEMO, VERSION_CORTA, versionDetallada } from '../lib/version'
 import {
   IconArchiveBox,
   IconBanknotes,
@@ -131,6 +131,11 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen">
+      {ES_DEMO && (
+        <div className="sticky top-0 z-40 bg-amber-500 px-4 py-1.5 text-center text-xs font-bold uppercase tracking-wide text-white">
+          Copia de prueba · datos de ejemplo, no es la base real
+        </div>
+      )}
       {/* Sidebar fijo en escritorio: verde DICOR profundo */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 bg-gradient-to-b from-brand-950 via-[#06231a] to-emerald-950 lg:block">
         <SidebarContent />

@@ -13,9 +13,17 @@
 /** Valor de una celda: los números del Excel llegan como number, el resto texto. */
 export type Celda = string | number
 
+/** Imagen pegada en la hoja (los logos de marca de las listas de DICOR). */
+export interface ImagenExcel {
+  /** Fila donde está anclada, base 1 */
+  fila: number
+  dataUrl: string
+}
+
 export interface HojaExcel {
   nombre: string
   filas: Celda[][]
+  imagenes: ImagenExcel[]
 }
 
 const NS_REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
@@ -69,6 +77,7 @@ export async function leerXLSX(archivo: File): Promise<HojaExcel[]> {
     hojas.push({
       nombre: hoja.getAttribute('name') ?? `Hoja ${hojas.length + 1}`,
       filas: leerHoja(xml, textos),
+      imagenes: await leerImagenes(buf, zip, ruta!),
     })
   }
 
@@ -163,7 +172,7 @@ function leerDirectorioZip(buf: ArrayBuffer): Map<string, EntradaZip> {
   return entradas
 }
 
-async function textoDe(buf: ArrayBuffer, entrada: EntradaZip | undefined): Promise<string | null> {
+async function bytesDe(buf: ArrayBuffer, entrada: EntradaZip | undefined): Promise<Uint8Array | null> {
   if (!entrada) return null
   const dv = new DataView(buf)
   if (entrada.offset + 30 > buf.byteLength || dv.getUint32(entrada.offset, true) !== 0x04034b50) {
@@ -175,11 +184,126 @@ async function textoDe(buf: ArrayBuffer, entrada: EntradaZip | undefined): Promi
   if (desde + entrada.comprimido > buf.byteLength) throw new Error('ZIP truncado')
 
   const datos = new Uint8Array(buf, desde, entrada.comprimido)
-  if (entrada.metodo === 0) return new TextDecoder().decode(datos) // sin comprimir
+  if (entrada.metodo === 0) return datos // sin comprimir
   if (entrada.metodo !== 8) throw new Error('El Excel usa una compresión que no se puede leer')
 
   const flujo = new Blob([datos]).stream().pipeThrough(new DecompressionStream('deflate-raw'))
-  return await new Response(flujo).text()
+  return new Uint8Array(await new Response(flujo).arrayBuffer())
+}
+
+async function textoDe(buf: ArrayBuffer, entrada: EntradaZip | undefined): Promise<string | null> {
+  const bytes = await bytesDe(buf, entrada)
+  return bytes === null ? null : new TextDecoder().decode(bytes)
+}
+
+// ---------------------------------------------------------------- Imágenes
+
+/** Las listas de DICOR usan el logo de la marca como título de cada bloque. */
+const MAX_REPETICIONES = 3 // una imagen repetida más veces es el logo del membrete
+
+const TIPOS: Record<string, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  bmp: 'image/bmp',
+  webp: 'image/webp',
+}
+
+/** Resuelve rutas relativas dentro del ZIP ('../media/x.png' → 'xl/media/x.png'). */
+function resolverRuta(destino: string, base: string): string {
+  if (destino.startsWith('/')) return destino.slice(1)
+  const salida: string[] = []
+  for (const parte of `${base}/${destino}`.split('/')) {
+    if (parte === '' || parte === '.') continue
+    if (parte === '..') salida.pop()
+    else salida.push(parte)
+  }
+  return salida.join('/')
+}
+
+function aBase64(bytes: Uint8Array): string {
+  let binario = ''
+  const TROZO = 0x8000 // de a pedazos: fromCharCode no soporta arrays enormes
+  for (let i = 0; i < bytes.length; i += TROZO) {
+    binario += String.fromCharCode(...bytes.subarray(i, i + TROZO))
+  }
+  return btoa(binario)
+}
+
+async function leerImagenes(
+  buf: ArrayBuffer,
+  zip: Map<string, EntradaZip>,
+  rutaHoja: string
+): Promise<ImagenExcel[]> {
+  try {
+    const relsHoja = await textoDe(buf, zip.get(rutaHoja.replace(/([^/]+)$/, '_rels/$1.rels')))
+    if (!relsHoja) return []
+
+    const carpetaHoja = rutaHoja.replace(/\/[^/]+$/, '')
+    let rutaDibujo = ''
+    for (const rel of etiquetas(parsearXML(relsHoja), 'Relationship')) {
+      if ((rel.getAttribute('Type') ?? '').endsWith('/drawing')) {
+        rutaDibujo = resolverRuta(rel.getAttribute('Target') ?? '', carpetaHoja)
+      }
+    }
+    if (!rutaDibujo) return []
+
+    const dibujoXml = await textoDe(buf, zip.get(rutaDibujo))
+    if (!dibujoXml) return []
+
+    // rId → archivo de imagen
+    const carpetaDibujo = rutaDibujo.replace(/\/[^/]+$/, '')
+    const archivos = new Map<string, string>()
+    const relsDibujo = await textoDe(buf, zip.get(rutaDibujo.replace(/([^/]+)$/, '_rels/$1.rels')))
+    if (relsDibujo) {
+      for (const rel of etiquetas(parsearXML(relsDibujo), 'Relationship')) {
+        archivos.set(
+          rel.getAttribute('Id') ?? '',
+          resolverRuta(rel.getAttribute('Target') ?? '', carpetaDibujo)
+        )
+      }
+    }
+
+    // Anclajes: qué imagen está en qué fila
+    const doc = parsearXML(dibujoXml)
+    const anclas: { fila: number; archivo: string }[] = []
+    for (const ancla of [...etiquetas(doc, 'twoCellAnchor'), ...etiquetas(doc, 'oneCellAnchor')]) {
+      const desde = etiquetas(ancla, 'from')[0]
+      const fila = parseInt(etiquetas(desde, 'row')[0]?.textContent ?? '', 10)
+      const blip = etiquetas(ancla, 'blip')[0]
+      const rId = blip?.getAttributeNS(NS_REL, 'embed') ?? blip?.getAttribute('r:embed') ?? ''
+      const archivo = archivos.get(rId)
+      if (!archivo || !Number.isFinite(fila)) continue
+      anclas.push({ fila: fila + 1, archivo })
+    }
+
+    // El logo del negocio se repite en cada hoja impresa: no es una marca
+    const usos = new Map<string, number>()
+    for (const a of anclas) usos.set(a.archivo, (usos.get(a.archivo) ?? 0) + 1)
+
+    const cache = new Map<string, string>()
+    const imagenes: ImagenExcel[] = []
+    for (const { fila, archivo } of anclas) {
+      if ((usos.get(archivo) ?? 0) > MAX_REPETICIONES) continue
+      const tipo = TIPOS[archivo.split('.').pop()?.toLowerCase() ?? '']
+      if (!tipo) continue // emf/wmf y otros formatos que el navegador no muestra
+
+      let dataUrl = cache.get(archivo)
+      if (!dataUrl) {
+        const bytes = await bytesDe(buf, zip.get(archivo))
+        if (!bytes) continue
+        dataUrl = `data:${tipo};base64,${aBase64(bytes)}`
+        cache.set(archivo, dataUrl)
+      }
+      imagenes.push({ fila, dataUrl })
+    }
+
+    imagenes.sort((a, b) => a.fila - b.fila)
+    return imagenes
+  } catch {
+    return [] // sin imágenes la importación funciona igual
+  }
 }
 
 // ---------------------------------------------------------------- XML

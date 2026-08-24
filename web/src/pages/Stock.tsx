@@ -26,6 +26,7 @@ import {
 } from '../components/icons'
 import { useToast } from '../components/Toast'
 import MovimientoStockModal from '../components/MovimientoStockModal'
+import { traerTodas } from '../lib/consultas'
 import { CATEGORIAS_BASE, estadoStock, type MovimientoStock, type Producto } from '../types'
 
 const POR_PAGINA = 25
@@ -74,11 +75,16 @@ export default function Stock() {
   }, [movPagina, busquedaMov, tipoMov])
 
   async function cargarProductos() {
-    const { data, error } = await supabase.from('productos').select('*').order('codigo')
-    if (error) toast('error', 'No se pudieron cargar los productos')
+    let data: Producto[] = []
+    try {
+      // En tandas: si no, Supabase corta el catálogo en 1000 productos
+      data = await traerTodas<Producto>('productos', '*', 'codigo')
+    } catch {
+      toast('error', 'No se pudieron cargar los productos')
+    }
     // Normaliza stock/stock_minimo por si la migración de stock todavía no corrió
     setProductos(
-      ((data as Producto[]) ?? []).map((p) => ({
+      data.map((p) => ({
         ...p,
         stock: p.stock ?? 0,
         stock_minimo: p.stock_minimo ?? 0,

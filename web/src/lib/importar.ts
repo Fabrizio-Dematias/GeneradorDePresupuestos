@@ -254,7 +254,25 @@ interface FilaCruda {
   stock: number
   stockMinimo: number
   lineasExtra: number
+  bloque: number
 }
+
+/**
+ * Un bloque del archivo: en las listas de DICOR cada marca es un bloque, con
+ * su propio encabezado de columnas y, arriba, el nombre o el logo de la marca.
+ */
+export interface BloqueArchivo {
+  indice: number
+  /** Fila donde arranca (para ubicar el logo que está justo arriba) */
+  nroFila: number
+  /** Nombre detectado en el archivo; vacío si la marca era una imagen */
+  titulo: string
+  cantidad: number
+  primerCodigo: string
+}
+
+/** Un texto que se repite muchas veces es el membrete de la hoja, no una marca. */
+const MAX_REPETICIONES_TITULO = 2
 
 /**
  * Primera pasada: saca de cada fila los datos del producto.
@@ -269,12 +287,68 @@ function leerFilas(
   mapeo: Mapeo,
   desde: number,
   categoriaDestino: string
-): FilaCruda[] {
+): { crudas: FilaCruda[]; bloques: BloqueArchivo[] } {
   const encabezado = desde > 0 ? filas[desde - 1] ?? [] : []
   const claveEncabezado = normalizar(
     `${celdaTexto(encabezado, mapeo.codigo)}|${celdaTexto(encabezado, mapeo.descripcion)}`
   )
+
+  const esEncabezado = (codigo: string, descripcion: string) =>
+    claveEncabezado !== '' && normalizar(`${codigo}|${descripcion}`) === claveEncabezado
+
+  // Un título suelto que se repite muchas veces es el membrete de cada hoja
+  // impresa ("CARBONES PARA HERRAMIENTAS ELECTRICAS"), no el nombre de una marca.
+  const repeticiones = new Map<string, number>()
+  for (let i = Math.max(0, desde); i < filas.length; i++) {
+    const fila = filas[i]
+    if (!fila) continue
+    const codigo = celdaTexto(fila, mapeo.codigo)
+    const descripcion = celdaTexto(fila, mapeo.descripcion)
+    const precio = mapeo.precio >= 0 ? parsearNumero(fila[mapeo.precio] ?? '') : null
+    if (codigo && !descripcion && precio === null && !esEncabezado(codigo, descripcion)) {
+      const clave = normalizar(codigo)
+      repeticiones.set(clave, (repeticiones.get(clave) ?? 0) + 1)
+    }
+  }
+
   const crudas: FilaCruda[] = []
+  const bloques: BloqueArchivo[] = [
+    { indice: 0, nroFila: desde + 1, titulo: '', cantidad: 0, primerCodigo: '' },
+  ]
+  let bloque = 0
+  let tituloPendiente = ''
+
+  // El nombre del primer bloque está arriba del encabezado de columnas
+  for (let i = desde - 2; i >= Math.max(0, desde - 6); i--) {
+    const fila = filas[i]
+    if (!fila) continue
+    const codigo = celdaTexto(fila, mapeo.codigo)
+    const descripcion = celdaTexto(fila, mapeo.descripcion)
+    const precio = mapeo.precio >= 0 ? parsearNumero(fila[mapeo.precio] ?? '') : null
+    if (!codigo || descripcion || precio !== null) continue
+    if ((repeticiones.get(normalizar(codigo)) ?? 0) <= MAX_REPETICIONES_TITULO) {
+      tituloPendiente = codigo
+      break
+    }
+  }
+
+  const abrirBloque = (nroFila: number) => {
+    if (bloques[bloque].cantidad === 0) {
+      // El bloque actual todavía no tiene productos: se reusa
+      bloques[bloque].nroFila = nroFila
+      if (tituloPendiente) bloques[bloque].titulo = tituloPendiente
+    } else {
+      bloque = bloques.length
+      bloques.push({
+        indice: bloque,
+        nroFila,
+        titulo: tituloPendiente,
+        cantidad: 0,
+        primerCodigo: '',
+      })
+    }
+    tituloPendiente = ''
+  }
 
   for (let i = Math.max(0, desde); i < filas.length; i++) {
     const fila = filas[i]
@@ -284,19 +358,41 @@ function leerFilas(
     const descripcion = celdaTexto(fila, mapeo.descripcion).replace(/\s+/g, ' ')
     const precio = mapeo.precio >= 0 ? parsearNumero(fila[mapeo.precio] ?? '') : null
 
-    // Fila que no aporta nada (solo el precio combinado) o encabezado repetido
+    // Fila que no aporta nada (solo el precio de la celda combinada)
     if (!codigo && !descripcion) continue
-    if (claveEncabezado !== '' && normalizar(`${codigo}|${descripcion}`) === claveEncabezado) continue
-    // Título de sección: texto suelto, sin descripción ni precio
-    if (!descripcion && precio === null) continue
 
-    // Renglón que continúa la descripción del producto de arriba
+    // Encabezado de columnas repetido: arranca un bloque nuevo
+    if (esEncabezado(codigo, descripcion)) {
+      abrirBloque(i + 1)
+      continue
+    }
+
+    // Título de sección: texto suelto, sin descripción ni precio
+    if (!descripcion && precio === null) {
+      if ((repeticiones.get(normalizar(codigo)) ?? 0) <= MAX_REPETICIONES_TITULO) {
+        tituloPendiente = codigo
+      }
+      continue
+    }
+
+    // Renglón que continúa la descripción del producto de arriba. Puede venir
+    // sin código, o repitiendo el mismo código y precio cuando esas celdas
+    // están combinadas hacia abajo (así arma la lista el Excel de DICOR).
     const previa = crudas[crudas.length - 1]
-    if (!codigo && previa?.codigo) {
+    const continuaAlAnterior =
+      previa !== undefined &&
+      previa.codigo !== '' &&
+      descripcion !== '' &&
+      (codigo === '' ||
+        (codigo === previa.codigo && (precio === null || precio === previa.precio)))
+    if (continuaAlAnterior) {
       previa.descripcion = `${previa.descripcion} ${descripcion}`.trim()
       previa.lineasExtra++
       continue
     }
+
+    // Un título sin encabezado de columnas detrás también abre bloque
+    if (tituloPendiente) abrirBloque(i + 1)
 
     crudas.push({
       nroFila: i + 1,
@@ -310,10 +406,24 @@ function leerFilas(
       stock: Math.max(0, Math.round(parsearNumero(fila[mapeo.stock] ?? '') ?? 0)),
       stockMinimo: Math.max(0, Math.round(parsearNumero(fila[mapeo.stockMinimo] ?? '') ?? 0)),
       lineasExtra: 0,
+      bloque,
     })
+
+    bloques[bloque].cantidad++
+    if (!bloques[bloque].primerCodigo) bloques[bloque].primerCodigo = codigo
   }
 
-  return crudas
+  return { crudas, bloques: bloques.filter((b) => b.cantidad > 0) }
+}
+
+/** Bloques (marcas) que trae el archivo, para poder nombrarlos antes de importar. */
+export function detectarBloques(
+  filas: Celda[][],
+  mapeo: Mapeo,
+  desde: number
+): BloqueArchivo[] {
+  if (mapeo.codigo < 0 || mapeo.descripcion < 0) return []
+  return leerFilas(filas, mapeo, desde, '').bloques
 }
 
 /**
@@ -329,23 +439,27 @@ export function analizarFilas(
   desde: number,
   categoriaDestino: string,
   existentes: Producto[],
-  actualizarExistentes: boolean
+  actualizarExistentes: boolean,
+  opciones: {
+    /** Marca elegida para cada bloque del archivo (cuando no viene en una columna) */
+    marcasPorBloque?: string[]
+    /** No pisar los precios de los productos que ya existen */
+    respetarPrecios?: boolean
+  } = {}
 ): FilaImportada[] {
   const porCodigo = new Map(existentes.map((p) => [(p.codigo ?? '').trim().toLowerCase(), p]))
-  const vistos = new Map<string, number>()
+  const vistos = new Map<string, { nroFila: number; precio: number }>()
   const resultado: FilaImportada[] = []
 
-  for (const cruda of leerFilas(filas, mapeo, desde, categoriaDestino)) {
+  for (const cruda of leerFilas(filas, mapeo, desde, categoriaDestino).crudas) {
     const { codigo, descripcion, precio } = cruda
-    const base: FilaImportada = { ...cruda, estado: 'nuevo', detalle: null, anterior: null }
+    const marca =
+      cruda.marca || (opciones.marcasPorBloque?.[cruda.bloque] ?? '').trim().toUpperCase()
+    const base: FilaImportada = { ...cruda, marca, estado: 'nuevo', detalle: null, anterior: null }
     const error = (detalle: string) => resultado.push({ ...base, estado: 'error', detalle })
 
     if (!codigo) {
       error('Sin código')
-      continue
-    }
-    if (!descripcion) {
-      error('Sin descripción')
       continue
     }
     if (precio === null) {
@@ -357,16 +471,37 @@ export function analizarFilas(
       continue
     }
 
+    // El mismo código puede figurar en varias marcas (es el mismo repuesto
+    // que sirve para varias herramientas): se carga una sola vez. Si además
+    // tiene otro precio, ahí sí hay que mirarlo.
     const clave = codigo.toLowerCase()
     const repetida = vistos.get(clave)
     if (repetida !== undefined) {
-      error(`Código repetido (ya está en la fila ${repetida})`)
+      if (repetida.precio === precio) {
+        resultado.push({
+          ...base,
+          estado: 'omitido',
+          detalle: `Ya está en la fila ${repetida.nroFila} (mismo precio)`,
+        })
+      } else {
+        error(`Código repetido con otro precio (fila ${repetida.nroFila})`)
+      }
       continue
     }
-    vistos.set(clave, cruda.nroFila)
+    vistos.set(clave, { nroFila: cruda.nroFila, precio })
 
-    const nota = cruda.lineasExtra > 0 ? 'Descripción tomada de 2 renglones' : null
     const anterior = porCodigo.get(clave) ?? null
+
+    // Hay productos de la lista que no tienen descripción (se identifican por
+    // la medida): se cargan igual, y si ya estaban, se les respeta la que tienen.
+    if (!descripcion && anterior?.descripcion) base.descripcion = anterior.descripcion
+    const nota =
+      cruda.lineasExtra > 0
+        ? 'Descripción tomada de 2 renglones'
+        : !base.descripcion
+          ? 'Sin descripción en el archivo'
+          : null
+
     if (!anterior) {
       resultado.push({ ...base, estado: 'nuevo', detalle: nota })
       continue
@@ -377,10 +512,10 @@ export function analizarFilas(
     }
 
     const cambia =
-      anterior.precio_unitario !== precio ||
-      anterior.descripcion !== descripcion ||
+      (!opciones.respetarPrecios && anterior.precio_unitario !== precio) ||
+      anterior.descripcion !== base.descripcion ||
       (anterior.categoria ?? '') !== cruda.categoria ||
-      (mapeo.marca >= 0 && (anterior.marca ?? '') !== cruda.marca) ||
+      (!!marca && (anterior.marca ?? '') !== marca) ||
       (mapeo.medidas >= 0 && (anterior.medidas ?? '') !== cruda.medidas) ||
       (mapeo.modelo >= 0 && (anterior.modelo ?? '') !== cruda.modelo) ||
       (mapeo.stockMinimo >= 0 && anterior.stock_minimo !== cruda.stockMinimo)

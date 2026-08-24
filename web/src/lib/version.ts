@@ -11,15 +11,22 @@ export const VERSION = leer(typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSI
 export const COMMIT = leer(typeof __APP_COMMIT__ !== 'undefined' ? __APP_COMMIT__ : '', '')
 export const FECHA_BUILD = leer(typeof __APP_FECHA__ !== 'undefined' ? __APP_FECHA__ : '', '')
 
-/** "v1.2.3 · a1b2c3d" — lo que se muestra abajo en el menú. */
-export const VERSION_CORTA = `v${VERSION}${COMMIT ? ` · ${COMMIT}` : ''}`
+/** Copia de previsualización con datos de ejemplo (no es la base real). */
+export const ES_DEMO = typeof __DEMO__ !== 'undefined' && __DEMO__ === true
 
-/** Detalle para el tooltip: incluye cuándo se compiló. */
+/** "v1.2.3" — lo único que se muestra abajo en el menú. */
+export const VERSION_CORTA = `v${VERSION}`
+
+/**
+ * Detalle para el tooltip: el commit y la fecha quedan acá, a mano si hay
+ * que volver a una versión, pero sin ensuciar la pantalla.
+ */
 export function versionDetallada(): string {
-  if (!FECHA_BUILD) return VERSION_CORTA
+  const conCommit = `${VERSION_CORTA}${COMMIT ? ` · ${COMMIT}` : ''}`
+  if (!FECHA_BUILD) return conCommit
   const fecha = new Date(FECHA_BUILD)
-  if (isNaN(fecha.getTime())) return VERSION_CORTA
-  return `${VERSION_CORTA}\nActualizado el ${fecha.toLocaleString('es-AR', {
+  if (isNaN(fecha.getTime())) return conCommit
+  return `${conCommit}\nActualizado el ${fecha.toLocaleString('es-AR', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',

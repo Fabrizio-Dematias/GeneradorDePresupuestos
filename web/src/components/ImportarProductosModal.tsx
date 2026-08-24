@@ -6,7 +6,7 @@
  * importar. Nada se toca en la base hasta apretar "Importar".
  */
 
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { formatARS, plural } from '../lib/format'
 import { exportarCSV } from '../lib/csv'
@@ -19,6 +19,7 @@ import {
   MAPEO_VACIO,
   analizarFilas,
   detectarEncabezado,
+  detectarBloques,
   detectarMapeo,
   leerCSV,
   nombreColumna,
@@ -64,6 +65,8 @@ export default function ImportarProductosModal({
   const [categoriaSel, setCategoriaSel] = useState(CATEGORIA_NUEVA)
   const [categoriaNueva, setCategoriaNueva] = useState('')
   const [actualizarExistentes, setActualizarExistentes] = useState(true)
+  const [marcasBloques, setMarcasBloques] = useState<string[]>([])
+  const [respetarPrecios, setRespetarPrecios] = useState(false)
   const [filtro, setFiltro] = useState<'todos' | EstadoFila>('todos')
   const [error, setError] = useState<string | null>(null)
   const [leyendo, setLeyendo] = useState(false)
@@ -92,6 +95,27 @@ export default function ImportarProductosModal({
     .trim()
     .toUpperCase()
 
+  // Bloques del archivo (en las listas de DICOR, cada marca es un bloque)
+  const bloques = useMemo(
+    () => (hojas ? detectarBloques(filas, mapeo, filaEncabezado + 1) : []),
+    [hojas, filas, mapeo, filaEncabezado]
+  )
+  const pedirMarcas = conCatalogo && mapeo.marca < 0 && bloques.length > 1
+
+  useEffect(() => {
+    setMarcasBloques(bloques.map((b) => b.titulo))
+  }, [bloques])
+
+  /** Logo de cada bloque: la imagen pegada justo arriba de donde arranca. */
+  const logos = useMemo(() => {
+    const imagenes = hojas?.[hojaIdx]?.imagenes ?? []
+    return bloques.map((bloque, i) => {
+      const desde = i === 0 ? 0 : bloques[i - 1].nroFila
+      const candidatas = imagenes.filter((img) => img.fila > desde && img.fila <= bloque.nroFila + 2)
+      return candidatas.length > 0 ? candidatas[candidatas.length - 1].dataUrl : ''
+    })
+  }, [hojas, hojaIdx, bloques])
+
   const analizadas = useMemo(() => {
     if (!hojas || mapeo.codigo < 0 || mapeo.descripcion < 0 || mapeo.precio < 0) return []
     return analizarFilas(
@@ -100,9 +124,21 @@ export default function ImportarProductosModal({
       filaEncabezado + 1,
       categoriaDestino,
       productos,
-      actualizarExistentes
+      actualizarExistentes,
+      { marcasPorBloque: pedirMarcas ? marcasBloques : undefined, respetarPrecios }
     )
-  }, [hojas, filas, mapeo, filaEncabezado, categoriaDestino, productos, actualizarExistentes])
+  }, [
+    hojas,
+    filas,
+    mapeo,
+    filaEncabezado,
+    categoriaDestino,
+    productos,
+    actualizarExistentes,
+    pedirMarcas,
+    marcasBloques,
+    respetarPrecios,
+  ])
 
   const resumen = useMemo(() => resumir(analizadas), [analizadas])
   const visibles = useMemo(
@@ -129,6 +165,8 @@ export default function ImportarProductosModal({
     setCategoriaNueva('')
     setCategoriaSel(CATEGORIA_NUEVA)
     setFiltro('todos')
+    setMarcasBloques([])
+    setRespetarPrecios(false)
     setError(null)
     setProgreso(0)
     if (inputArchivo.current) inputArchivo.current.value = ''
@@ -165,7 +203,7 @@ export default function ImportarProductosModal({
     try {
       const esTexto = /\.(csv|txt|tsv)$/i.test(archivo.name)
       const nuevas = esTexto
-        ? [{ nombre: archivo.name, filas: leerCSV(await textoDelArchivo(archivo)) }]
+        ? [{ nombre: archivo.name, filas: leerCSV(await textoDelArchivo(archivo)), imagenes: [] }]
         : await leerXLSX(archivo)
 
       const conDatos = nuevas.filter((h) => h.filas.length > 0)
@@ -226,42 +264,55 @@ export default function ImportarProductosModal({
     let avisoHistorial = false
 
     try {
-      // 1. Alta y actualización en una sola pasada (upsert por código).
-      //    stock_minimo solo se manda si el archivo trae esa columna, para no
-      //    pisar con 0 los mínimos ya configurados.
+      // 1. Alta y actualización (upsert por código). Los productos nuevos van
+      //    con su precio; los que ya existen se mandan aparte para poder dejar
+      //    el precio como está si se pidió no tocarlo.
       const ahora = new Date().toISOString()
       let hechos = 0
-      for (const tanda of tandas([...nuevos, ...actualiza], TANDA)) {
-        const payload = tanda.map((f) => {
-          const fila: Record<string, unknown> = {
-            codigo: f.codigo,
-            descripcion: f.descripcion,
-            precio_unitario: f.precio,
-            categoria: f.categoria,
-            fecha_actualizacion: ahora,
-          }
-          // Solo se mandan las columnas que el archivo trae, para no pisar
-          // con vacío los datos ya cargados de los productos que ya existen.
-          if (conCatalogo) {
-            if (mapeo.marca >= 0) fila.marca = f.marca || null
-            if (mapeo.medidas >= 0) fila.medidas = f.medidas || null
-            if (mapeo.modelo >= 0) fila.modelo = f.modelo || null
-          }
-          if (mapeo.stockMinimo >= 0) fila.stock_minimo = f.stockMinimo
-          return fila
-        })
-        const { error: errorUpsert } = await supabase
-          .from('productos')
-          .upsert(payload, { onConflict: 'codigo' })
-        if (errorUpsert) throw errorUpsert
-        hechos += tanda.length
-        setProgreso(hechos)
+
+      /** Solo se mandan las columnas que el archivo trae, para no pisar con
+       *  vacío los datos ya cargados de los productos que ya existen. */
+      const armarFila = (f: (typeof nuevos)[number], conPrecio: boolean) => {
+        const fila: Record<string, unknown> = {
+          codigo: f.codigo,
+          descripcion: f.descripcion,
+          categoria: f.categoria,
+          fecha_actualizacion: ahora,
+        }
+        if (conPrecio) fila.precio_unitario = f.precio
+        if (conCatalogo) {
+          if (mapeo.marca >= 0 || pedirMarcas) fila.marca = f.marca || null
+          if (mapeo.medidas >= 0) fila.medidas = f.medidas || null
+          if (mapeo.modelo >= 0) fila.modelo = f.modelo || null
+        }
+        if (mapeo.stockMinimo >= 0) fila.stock_minimo = f.stockMinimo
+        return fila
+      }
+
+      const grupos: [typeof nuevos, boolean][] = [
+        [nuevos, true],
+        [actualiza, !respetarPrecios],
+      ]
+      for (const [filasGrupo, conPrecio] of grupos) {
+        for (const tanda of tandas(filasGrupo, TANDA)) {
+          const { error: errorUpsert } = await supabase
+            .from('productos')
+            .upsert(
+              tanda.map((f) => armarFila(f, conPrecio)),
+              { onConflict: 'codigo' }
+            )
+          if (errorUpsert) throw errorUpsert
+          hechos += tanda.length
+          setProgreso(hechos)
+        }
       }
 
       // 2. Historial de los precios que cambiaron
-      const cambiosPrecio = actualiza.filter(
-        (f) => f.anterior && f.precio !== null && f.anterior.precio_unitario !== f.precio
-      )
+      const cambiosPrecio = respetarPrecios
+        ? []
+        : actualiza.filter(
+            (f) => f.anterior && f.precio !== null && f.anterior.precio_unitario !== f.precio
+          )
       for (const tanda of tandas(cambiosPrecio, TANDA)) {
         const { error: errorHistorial } = await supabase.from('historial_precios').insert(
           tanda.map((f) => ({
@@ -501,16 +552,74 @@ export default function ImportarProductosModal({
                   )}
                 </div>
               )}
-              <label className="flex items-center gap-2 self-end pb-2 text-sm text-slate-600 sm:col-span-2">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                  checked={actualizarExistentes}
-                  onChange={(e) => setActualizarExistentes(e.target.checked)}
-                />
-                Actualizar precio y descripción de los códigos que ya existen
-              </label>
+              <div className="space-y-2 self-end pb-2 sm:col-span-2">
+                <label className="flex items-center gap-2 text-sm text-slate-600">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                    checked={actualizarExistentes}
+                    onChange={(e) => setActualizarExistentes(e.target.checked)}
+                  />
+                  Actualizar los códigos que ya existen
+                </label>
+                {actualizarExistentes && (
+                  <label className="flex items-center gap-2 text-sm text-slate-600">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                      checked={respetarPrecios}
+                      onChange={(e) => setRespetarPrecios(e.target.checked)}
+                    />
+                    No cambiar los precios: solo completar los demás datos
+                  </label>
+                )}
+              </div>
             </div>
+
+            {/* ---------------- Paso 4b: marcas de cada bloque ---------------- */}
+            {pedirMarcas && (
+              <div>
+                <p className="label">Marcas del archivo ({bloques.length} bloques)</p>
+                <p className="mb-2 text-xs text-slate-400">
+                  La lista viene separada en bloques, uno por marca. Poné el nombre de cada uno
+                  (los que en el Excel están escritos ya vienen cargados). El que dejes vacío queda
+                  sin marca y en el PDF sale en un bloque suelto.
+                </p>
+                <div className="max-h-72 divide-y divide-slate-100 overflow-auto rounded-xl border border-slate-200">
+                  {bloques.map((bloque, i) => (
+                    <div key={bloque.indice} className="flex items-center gap-3 px-3 py-2">
+                      <div className="flex h-10 w-24 shrink-0 items-center justify-center">
+                        {logos[i] ? (
+                          <img
+                            src={logos[i]}
+                            alt=""
+                            className="max-h-10 max-w-full object-contain"
+                          />
+                        ) : (
+                          <span className="text-[11px] text-slate-400">sin logo</span>
+                        )}
+                      </div>
+                      <span className="w-28 shrink-0 text-xs leading-tight text-slate-500">
+                        {plural(bloque.cantidad, 'producto')}
+                        <br />
+                        <span className="font-mono">desde {bloque.primerCodigo}</span>
+                      </span>
+                      <input
+                        className="input flex-1 !py-1.5 text-sm uppercase"
+                        placeholder="Marca (opcional)"
+                        aria-label={`Marca del bloque que arranca en ${bloque.primerCodigo}`}
+                        value={marcasBloques[i] ?? ''}
+                        onChange={(e) => {
+                          const copia = [...marcasBloques]
+                          copia[i] = e.target.value
+                          setMarcasBloques(copia)
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* ---------------- Paso 5: vista previa ---------------- */}
             {analizadas.length > 0 && (

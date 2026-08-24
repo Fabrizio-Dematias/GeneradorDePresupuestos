@@ -1,5 +1,5 @@
-import { supabase } from './supabase'
 import { fechaParaArchivo } from './csv'
+import { traerTodas } from './consultas'
 import { COMMIT, VERSION } from './version'
 
 /**
@@ -18,21 +18,15 @@ const TABLAS = [
 ] as const
 
 export async function descargarBackup(): Promise<number> {
-  const LOTE = 1000
   const tablas: Record<string, unknown[]> = {}
   let totalFilas = 0
 
   for (const tabla of TABLAS) {
-    const filas: unknown[] = []
-    for (let desde = 0; ; desde += LOTE) {
-      const { data, error } = await supabase
-        .from(tabla)
-        .select('*')
-        .order('id')
-        .range(desde, desde + LOTE - 1)
-      if (error) throw new Error(`${tabla}: ${error.message}`)
-      filas.push(...(data ?? []))
-      if (!data || data.length < LOTE) break
+    let filas: unknown[]
+    try {
+      filas = await traerTodas<unknown>(tabla, '*', 'id')
+    } catch (e: any) {
+      throw new Error(`${tabla}: ${e?.message ?? 'error al leer la tabla'}`)
     }
     tablas[tabla] = filas
     totalFilas += filas.length

@@ -4,3 +4,5 @@
 declare const __APP_VERSION__: string
 declare const __APP_COMMIT__: string
 declare const __APP_FECHA__: string
+/** true solo en el build de previsualización con datos de ejemplo */
+declare const __DEMO__: boolean

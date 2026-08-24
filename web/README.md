@@ -134,7 +134,20 @@ trae una columna de stock inicial, se carga como movimiento de ingreso auditado.
 
 También entiende las listas armadas como catálogo (una foto por producto): toma el
 precio de la celda combinada aunque esté en otra fila, junta las descripciones
-partidas en dos renglones e ignora los títulos y los encabezados repetidos.
+partidas en dos renglones (vengan sin código o repitiendo el de arriba) e ignora
+los títulos y los encabezados repetidos.
+
+Cuando el archivo trae los productos en bloques —uno por marca, como las listas de
+carbones— los detecta y muestra **el logo de cada bloque sacado del propio Excel**
+con un campo al lado para escribir la marca; los bloques cuya marca está escrita
+vienen completados. Así se carga la marca de una vez aunque en el Excel sea una imagen.
+
+Dos casos que resuelve solo: el mismo código repetido en varias marcas se carga una
+sola vez (si tiene dos precios distintos, lo marca como error para que lo revises),
+y los productos sin descripción (los que se identifican por la medida) se cargan igual.
+
+Con **"No cambiar los precios"** se completan marca, medidas y MOD de los productos
+que ya existen sin tocar lo que valen: sirve para cargar datos desde una lista vieja.
 
 ### Lista de precios para imprimir
 

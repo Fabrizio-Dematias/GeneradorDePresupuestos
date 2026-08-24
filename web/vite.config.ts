@@ -5,7 +5,7 @@ import { infoDeBuild } from './scripts/build-info.mjs'
 export default defineConfig({
   plugins: [react()],
   // Versión y commit del build: la app los muestra abajo en el menú
-  define: infoDeBuild(),
+  define: { ...infoDeBuild(), __DEMO__: 'false' },
   build: {
     rollupOptions: {
       output: {
