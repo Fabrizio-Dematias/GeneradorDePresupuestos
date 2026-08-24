@@ -239,6 +239,11 @@ export interface FilaImportada {
   anterior: Producto | null
 }
 
+/** Clave para comparar códigos: sin espacios ni mayúsculas ("428 B" = "428b"). */
+export function claveCodigo(codigo: string): string {
+  return String(codigo ?? '').trim().toLowerCase().replace(/\s+/g, '')
+}
+
 const celdaTexto = (fila: Celda[], col: number): string =>
   col >= 0 && col < fila.length ? String(fila[col] ?? '').trim() : ''
 
@@ -447,7 +452,9 @@ export function analizarFilas(
     respetarPrecios?: boolean
   } = {}
 ): FilaImportada[] {
-  const porCodigo = new Map(existentes.map((p) => [(p.codigo ?? '').trim().toLowerCase(), p]))
+  // Los códigos se comparan sin espacios ni mayúsculas: en el Excel puede
+  // figurar "428 B" y en el sistema "428b", y es el mismo producto.
+  const porCodigo = new Map(existentes.map((p) => [claveCodigo(p.codigo ?? ''), p]))
   const vistos = new Map<string, { nroFila: number; precio: number }>()
   const resultado: FilaImportada[] = []
 
@@ -474,7 +481,7 @@ export function analizarFilas(
     // El mismo código puede figurar en varias marcas (es el mismo repuesto
     // que sirve para varias herramientas): se carga una sola vez. Si además
     // tiene otro precio, ahí sí hay que mirarlo.
-    const clave = codigo.toLowerCase()
+    const clave = claveCodigo(codigo)
     const repetida = vistos.get(clave)
     if (repetida !== undefined) {
       if (repetida.precio === precio) {
@@ -495,12 +502,17 @@ export function analizarFilas(
     // Hay productos de la lista que no tienen descripción (se identifican por
     // la medida): se cargan igual, y si ya estaban, se les respeta la que tienen.
     if (!descripcion && anterior?.descripcion) base.descripcion = anterior.descripcion
-    const nota =
-      cruda.lineasExtra > 0
-        ? 'Descripción tomada de 2 renglones'
-        : !base.descripcion
-          ? 'Sin descripción en el archivo'
-          : null
+
+    // El código del sistema manda: así "428 B" del Excel actualiza al "428b"
+    // que ya está cargado, en vez de crear un producto repetido.
+    if (anterior && anterior.codigo && anterior.codigo !== codigo) base.codigo = anterior.codigo
+
+    const notas = [
+      cruda.lineasExtra > 0 ? 'Descripción tomada de 2 renglones' : '',
+      !base.descripcion ? 'Sin descripción en el archivo' : '',
+      anterior && anterior.codigo !== codigo ? `En el sistema es ${anterior.codigo}` : '',
+    ].filter(Boolean)
+    const nota = notas.length > 0 ? notas.join(' · ') : null
 
     if (!anterior) {
       resultado.push({ ...base, estado: 'nuevo', detalle: nota })

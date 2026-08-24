@@ -611,9 +611,10 @@ export default function ImportarProductosModal({
               <div>
                 <p className="label">Marcas del archivo ({bloques.length} bloques)</p>
                 <p className="mb-2 text-xs text-slate-400">
-                  La lista viene separada en bloques, uno por marca. Poné el nombre de cada uno
-                  (los que en el Excel están escritos ya vienen cargados). El que dejes vacío queda
-                  sin marca y en el PDF sale en un bloque suelto.
+                  La lista viene separada en bloques, uno por marca. Mirá el logo y escribí al
+                  lado el nombre de esa marca: se lo pone a esos productos y guarda el logo para la
+                  lista de precios. Los que en el Excel están escritos ya vienen cargados. El que
+                  dejes vacío queda sin marca (y su logo no se guarda).
                 </p>
                 <div className="max-h-72 divide-y divide-slate-100 overflow-auto rounded-xl border border-slate-200">
                   {bloques.map((bloque, i) => (
@@ -636,7 +637,7 @@ export default function ImportarProductosModal({
                       </span>
                       <input
                         className="input flex-1 !py-1.5 text-sm uppercase"
-                        placeholder="Marca (opcional)"
+                        placeholder="Escribí la marca (ej: BOSCH)"
                         aria-label={`Marca del bloque que arranca en ${bloque.primerCodigo}`}
                         value={marcasBloques[i] ?? ''}
                         onChange={(e) => {
@@ -706,7 +707,9 @@ export default function ImportarProductosModal({
                           <td className="whitespace-nowrap px-3 py-2 text-right">
                             {f.precio === null ? (
                               <span className="text-xs text-red-700">sin precio</span>
-                            ) : f.anterior && f.anterior.precio_unitario !== f.precio ? (
+                            ) : !respetarPrecios &&
+                              f.anterior &&
+                              f.anterior.precio_unitario !== f.precio ? (
                               <span className="text-xs text-slate-500">
                                 {formatARS(f.anterior.precio_unitario)}{' '}
                                 <span className="font-semibold text-brand-700">
@@ -714,7 +717,11 @@ export default function ImportarProductosModal({
                                 </span>
                               </span>
                             ) : (
-                              <span className="font-semibold text-slate-700">{formatARS(f.precio)}</span>
+                              <span className="font-semibold text-slate-700">
+                                {formatARS(
+                                  respetarPrecios && f.anterior ? f.anterior.precio_unitario : f.precio
+                                )}
+                              </span>
                             )}
                           </td>
                         </tr>
