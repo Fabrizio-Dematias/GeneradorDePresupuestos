@@ -162,6 +162,8 @@ export function StockPill({ stock, minimo }: { stock: number; minimo: number }) 
   )
 }
 
+const coloresCategoria = ['blue', 'amber', 'violet', 'green', 'red'] as const
+
 export function categoriaBadgeColor(categoria: string | null): keyof typeof badgeColors {
   switch (categoria) {
     case 'CARBONES':
@@ -174,9 +176,13 @@ export function categoriaBadgeColor(categoria: string | null): keyof typeof badg
       return 'violet'
     case 'RULEMANES Y CUBETAS':
       return 'green'
-    default:
-      return 'slate'
   }
+  if (!categoria) return 'slate'
+  // Categorías agregadas después (por ejemplo al importar una lista nueva):
+  // color estable derivado del nombre, así no quedan todas grises.
+  let hash = 0
+  for (let i = 0; i < categoria.length; i++) hash = (hash * 31 + categoria.charCodeAt(i)) >>> 0
+  return coloresCategoria[hash % coloresCategoria.length]
 }
 
 // ---------------------------------------------------------------- Spinner

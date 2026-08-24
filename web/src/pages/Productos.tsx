@@ -15,9 +15,19 @@ import {
   StockPill,
   categoriaBadgeColor,
 } from '../components/ui'
-import { IconCube, IconDownload, IconPencil, IconPercent, IconPlus, IconSearch, IconTrash } from '../components/icons'
+import {
+  IconCube,
+  IconDownload,
+  IconPencil,
+  IconPercent,
+  IconPlus,
+  IconSearch,
+  IconTrash,
+  IconUpload,
+} from '../components/icons'
 import { exportarCSV, fechaParaArchivo } from '../lib/csv'
 import { useToast } from '../components/Toast'
+import ImportarProductosModal from '../components/ImportarProductosModal'
 import { CATEGORIAS_BASE, type Producto } from '../types'
 
 const POR_PAGINA = 25
@@ -55,6 +65,9 @@ export default function Productos() {
   const [guardando, setGuardando] = useState(false)
   const [aEliminar, setAEliminar] = useState<Producto | null>(null)
   const [eliminando, setEliminando] = useState(false)
+
+  // Importación de listas (Excel / CSV)
+  const [modalImportar, setModalImportar] = useState(false)
 
   // Aumento masivo
   const [modalAumento, setModalAumento] = useState(false)
@@ -262,6 +275,10 @@ export default function Productos() {
         subtitle={productos ? `${productos.length} productos en el catálogo` : undefined}
         actions={
           <>
+            <Button variant="secondary" onClick={() => setModalImportar(true)} disabled={!productos}>
+              <IconUpload className="h-5 w-5" />
+              Importar
+            </Button>
             <Button
               variant="secondary"
               onClick={exportar}
@@ -500,6 +517,15 @@ export default function Productos() {
           </form>
         )}
       </Modal>
+
+      {/* Modal importar lista */}
+      <ImportarProductosModal
+        open={modalImportar}
+        onClose={() => setModalImportar(false)}
+        productos={productos ?? []}
+        categorias={categorias}
+        onImportado={cargar}
+      />
 
       {/* Modal aumento masivo */}
       <Modal

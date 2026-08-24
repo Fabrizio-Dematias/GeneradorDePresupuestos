@@ -85,6 +85,7 @@ function crearBuilder(table: string) {
     head: false,
     single: false,
     eqs: [] as [string, any][],
+    ins: [] as [string, any[]][],
     gtes: [] as [string, any][],
     ltes: [] as [string, any][],
     ors: [] as string[],
@@ -95,6 +96,7 @@ function crearBuilder(table: string) {
   function resolver() {
     let rows = [...(DB[table] ?? [])]
     for (const [c, v] of state.eqs) rows = rows.filter((r) => r[c] === v)
+    for (const [c, vs] of state.ins) rows = rows.filter((r) => vs.includes(r[c]))
     for (const [c, v] of state.gtes) rows = rows.filter((r) => r[c] >= v)
     for (const [c, v] of state.ltes) rows = rows.filter((r) => r[c] <= v)
     // Soporta el formato "col.ilike.%q%,col2.ilike.%q%"
@@ -139,6 +141,10 @@ function crearBuilder(table: string) {
       state.eqs.push([col, val])
       return api
     },
+    in(col: string, vals: any[]) {
+      state.ins.push([col, vals])
+      return api
+    },
     gte(col: string, val: any) {
       state.gtes.push([col, val])
       return api
@@ -160,6 +166,9 @@ function crearBuilder(table: string) {
       return api
     },
     insert() {
+      return api
+    },
+    upsert() {
       return api
     },
     update() {

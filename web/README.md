@@ -96,7 +96,7 @@ npx vite preview --outDir dist-mock
 | **Panel** | Estadísticas generales, gráfico de facturación y últimos remitos |
 | **Nuevo remito** | Buscador de productos con autocompletado (por código o descripción), bonificaciones, numeración automática `0001-XXX` y descarga del PDF |
 | **Remitos** | Lista con búsqueda, detalle completo, **re-descarga del PDF** de cualquier remito y eliminación |
-| **Productos** | Alta/edición/baja, filtro por categoría, búsqueda, **stock** y **actualización masiva de precios** con vista previa |
+| **Productos** | Alta/edición/baja, filtro por categoría, búsqueda, **stock**, **importación de listas desde Excel/CSV** y **actualización masiva de precios** con vista previa |
 | **Stock / Inventario** | Control de stock con semáforo (verde/ámbar/rojo), valor del inventario, alerta de reposición, ingresos/egresos/ajustes y registro de **todos los movimientos**. El stock se descuenta solo al generar un remito |
 | **Historial de precios** | Auditoría de todos los cambios (masivos e individuales), con filtros — *en la app de escritorio este módulo no funcionaba* |
 | **Más vendidos** | Ranking por cantidad o facturación, con períodos configurables |
@@ -111,7 +111,26 @@ Mejoras respecto a la app de escritorio:
 - **Todos** los cambios de precio quedan en el historial (también los individuales).
 - **Control de stock**: el inventario se descuenta solo al emitir un remito, avisa
   cuándo reponer y guarda cada entrada, salida y ajuste.
+- **Importar listas**: se carga el mismo Excel que se usa para mandar la lista de
+  precios y el sistema da de alta los productos nuevos y actualiza los que ya están.
 - Los datos están en la nube con backup automático de Supabase.
+
+### Importar una lista de precios
+
+En **Productos → Importar** se elige el archivo (`.xlsx` de Excel o `.csv`) y la
+pantalla muestra, antes de tocar nada:
+
+1. **Qué columna es cada dato** — lo detecta solo por los encabezados; si la lista
+   tiene el título arriba o encabezados raros, se corrige a mano con los desplegables.
+2. **La categoría** — se elige una existente o se escribe una nueva (por ejemplo
+   `BOBINADOS`); queda disponible en toda la app apenas se importa.
+3. **La vista previa** — cuántos productos son nuevos, cuántos actualizan precio
+   (muestra "precio viejo → precio nuevo") y cuáles tienen error (sin código, sin
+   precio, código repetido). Las filas con error no se importan.
+
+Los precios se leen en formato argentino (`$ 1.234,56`). Cada cambio de precio queda
+registrado en el **Historial de precios**, igual que un aumento masivo. Si el archivo
+trae una columna de stock inicial, se carga como movimiento de ingreso auditado.
 
 ## 🧾 Formato del PDF
 
