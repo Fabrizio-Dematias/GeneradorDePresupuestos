@@ -8,7 +8,7 @@
 
 import { useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { formatARS } from '../lib/format'
+import { formatARS, plural } from '../lib/format'
 import { exportarCSV } from '../lib/csv'
 import { Badge, Button, Input, Modal, Segmented, Select } from './ui'
 import { IconAlert, IconCheck, IconUpload, IconX } from './icons'
@@ -27,7 +27,7 @@ import {
   type EstadoFila,
   type Mapeo,
 } from '../lib/importar'
-import type { Producto } from '../types'
+import { soportaCatalogo, type Producto } from '../types'
 
 const CATEGORIA_NUEVA = '__nueva__'
 const FILAS_VISTA_PREVIA = 60
@@ -71,6 +71,11 @@ export default function ImportarProductosModal({
   const [progreso, setProgreso] = useState(0)
 
   const filas = hojas?.[hojaIdx]?.filas ?? []
+  // Sin migration_lista_precios.sql no existen marca/medidas/modelo en la base
+  const conCatalogo = soportaCatalogo(productos)
+  const campos = CAMPOS.filter(
+    (c) => conCatalogo || !['marca', 'medidas', 'modelo'].includes(c.campo)
+  )
 
   const columnas = useMemo(() => {
     let ancho = 0
@@ -182,9 +187,29 @@ export default function ImportarProductosModal({
   function descargarPlantilla() {
     exportarCSV(
       'plantilla_productos',
-      ['Código', 'Descripción', 'Categoría', 'Precio unitario', 'Stock inicial', 'Stock mínimo'],
       [
-        ['A-100', 'Ejemplo de producto', categoriaDestino || 'CATEGORÍA NUEVA', 12500.5, 0, 0],
+        'Código',
+        'Descripción',
+        'Categoría',
+        'Marca',
+        'Medidas',
+        'MOD',
+        'Precio unitario',
+        'Stock inicial',
+        'Stock mínimo',
+      ],
+      [
+        [
+          'A-100',
+          'Ejemplo de producto',
+          categoriaDestino || 'CATEGORÍA NUEVA',
+          'BLACK & DECKER',
+          '6x8x16',
+          '5',
+          12500.5,
+          0,
+          0,
+        ],
       ]
     )
   }
@@ -214,6 +239,13 @@ export default function ImportarProductosModal({
             precio_unitario: f.precio,
             categoria: f.categoria,
             fecha_actualizacion: ahora,
+          }
+          // Solo se mandan las columnas que el archivo trae, para no pisar
+          // con vacío los datos ya cargados de los productos que ya existen.
+          if (conCatalogo) {
+            if (mapeo.marca >= 0) fila.marca = f.marca || null
+            if (mapeo.medidas >= 0) fila.medidas = f.medidas || null
+            if (mapeo.modelo >= 0) fila.modelo = f.modelo || null
           }
           if (mapeo.stockMinimo >= 0) fila.stock_minimo = f.stockMinimo
           return fila
@@ -274,7 +306,7 @@ export default function ImportarProductosModal({
       }
 
       const partes = [
-        nuevos.length > 0 ? `${nuevos.length} productos nuevos` : '',
+        nuevos.length > 0 ? `${plural(nuevos.length, 'producto')} ${nuevos.length === 1 ? 'nuevo' : 'nuevos'}` : '',
         actualiza.length > 0 ? `${actualiza.length} actualizados` : '',
       ].filter(Boolean)
       toast('success', `Importación lista: ${partes.join(' y ')}.`)
@@ -311,7 +343,7 @@ export default function ImportarProductosModal({
             Cancelar
           </Button>
           <Button onClick={importar} loading={importando} disabled={!puedeImportar}>
-            {aProcesar > 0 ? `Importar ${aProcesar} productos` : 'Importar'}
+            {aProcesar > 0 ? `Importar ${plural(aProcesar, 'producto')}` : 'Importar'}
           </Button>
         </>
       }
@@ -410,7 +442,7 @@ export default function ImportarProductosModal({
             <div>
               <p className="label">¿Qué columna es cada dato?</p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {CAMPOS.map(({ campo, etiqueta, obligatorio }) => (
+                {campos.map(({ campo, etiqueta, obligatorio }) => (
                   <Select
                     key={campo}
                     aria-label={etiqueta}

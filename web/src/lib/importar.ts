@@ -100,13 +100,25 @@ export function parsearNumero(valor: Celda): number | null {
 
 // ---------------------------------------------------------------- Mapeo de columnas
 
-export type Campo = 'codigo' | 'descripcion' | 'precio' | 'categoria' | 'stock' | 'stockMinimo'
+export type Campo =
+  | 'codigo'
+  | 'descripcion'
+  | 'precio'
+  | 'categoria'
+  | 'marca'
+  | 'medidas'
+  | 'modelo'
+  | 'stock'
+  | 'stockMinimo'
 
 export const CAMPOS: { campo: Campo; etiqueta: string; obligatorio: boolean }[] = [
   { campo: 'codigo', etiqueta: 'Código', obligatorio: true },
   { campo: 'descripcion', etiqueta: 'Descripción', obligatorio: true },
   { campo: 'precio', etiqueta: 'Precio unitario', obligatorio: true },
   { campo: 'categoria', etiqueta: 'Categoría', obligatorio: false },
+  { campo: 'marca', etiqueta: 'Marca', obligatorio: false },
+  { campo: 'medidas', etiqueta: 'Medidas', obligatorio: false },
+  { campo: 'modelo', etiqueta: 'Modelo (MOD)', obligatorio: false },
   { campo: 'stock', etiqueta: 'Stock inicial', obligatorio: false },
   { campo: 'stockMinimo', etiqueta: 'Stock mínimo', obligatorio: false },
 ]
@@ -119,6 +131,9 @@ export const MAPEO_VACIO: Mapeo = {
   descripcion: -1,
   precio: -1,
   categoria: -1,
+  marca: -1,
+  medidas: -1,
+  modelo: -1,
   stock: -1,
   stockMinimo: -1,
 }
@@ -128,6 +143,9 @@ const CLAVES: Record<Campo, string[]> = {
   descripcion: ['descripcion', 'detalle', 'producto', 'denominacion', 'nombre', 'articulo'],
   precio: ['precio unitario', 'precio', 'p unit', 'punit', 'unitario', 'importe', 'lista', 'valor', 'monto'],
   categoria: ['categoria', 'rubro', 'familia', 'linea', 'grupo'],
+  marca: ['marca', 'fabricante'],
+  medidas: ['medidas', 'medida', 'dimensiones', 'dimension', 'tamano'],
+  modelo: ['mod', 'modelo'],
   stock: ['stock inicial', 'stock', 'cantidad', 'existencia', 'existencias'],
   stockMinimo: ['stock minimo', 'stock min', 'minimo', 'min', 'reposicion'],
 }
@@ -211,6 +229,9 @@ export interface FilaImportada {
   descripcion: string
   precio: number | null
   categoria: string
+  marca: string
+  medidas: string
+  modelo: string
   stock: number
   stockMinimo: number
   estado: EstadoFila
@@ -227,6 +248,9 @@ interface FilaCruda {
   descripcion: string
   precio: number | null
   categoria: string
+  marca: string
+  medidas: string
+  modelo: string
   stock: number
   stockMinimo: number
   lineasExtra: number
@@ -280,6 +304,9 @@ function leerFilas(
       descripcion,
       precio,
       categoria: (celdaTexto(fila, mapeo.categoria) || categoriaDestino).toUpperCase(),
+      marca: celdaTexto(fila, mapeo.marca).toUpperCase(),
+      medidas: celdaTexto(fila, mapeo.medidas).toUpperCase(),
+      modelo: celdaTexto(fila, mapeo.modelo).toUpperCase(),
       stock: Math.max(0, Math.round(parsearNumero(fila[mapeo.stock] ?? '') ?? 0)),
       stockMinimo: Math.max(0, Math.round(parsearNumero(fila[mapeo.stockMinimo] ?? '') ?? 0)),
       lineasExtra: 0,
@@ -353,6 +380,9 @@ export function analizarFilas(
       anterior.precio_unitario !== precio ||
       anterior.descripcion !== descripcion ||
       (anterior.categoria ?? '') !== cruda.categoria ||
+      (mapeo.marca >= 0 && (anterior.marca ?? '') !== cruda.marca) ||
+      (mapeo.medidas >= 0 && (anterior.medidas ?? '') !== cruda.medidas) ||
+      (mapeo.modelo >= 0 && (anterior.modelo ?? '') !== cruda.modelo) ||
       (mapeo.stockMinimo >= 0 && anterior.stock_minimo !== cruda.stockMinimo)
 
     resultado.push({

@@ -17,6 +17,7 @@ import {
 } from '../components/ui'
 import {
   IconCube,
+  IconDocumentList,
   IconDownload,
   IconPencil,
   IconPercent,
@@ -28,7 +29,8 @@ import {
 import { exportarCSV, fechaParaArchivo } from '../lib/csv'
 import { useToast } from '../components/Toast'
 import ImportarProductosModal from '../components/ImportarProductosModal'
-import { CATEGORIAS_BASE, type Producto } from '../types'
+import ListaPreciosModal from '../components/ListaPreciosModal'
+import { CATEGORIAS_BASE, soportaCatalogo, type Producto } from '../types'
 
 const POR_PAGINA = 25
 
@@ -37,6 +39,9 @@ interface FormularioProducto {
   codigo: string
   descripcion: string
   categoria: string
+  marca: string
+  medidas: string
+  modelo: string
   precio: string
   stockMinimo: string
   stockInicial: string
@@ -48,10 +53,27 @@ const formularioVacio: FormularioProducto = {
   codigo: '',
   descripcion: '',
   categoria: CATEGORIAS_BASE[0],
+  marca: '',
+  medidas: '',
+  modelo: '',
   precio: '',
   stockMinimo: '0',
   stockInicial: '0',
   stockActual: 0,
+}
+
+/**
+ * Campos de catálogo: se guardan en mayúscula y vacío → null. Si la base
+ * todavía no tiene esas columnas, no se mandan (ver `soportaCatalogo`).
+ */
+function datosCatalogo(form: FormularioProducto, soportado: boolean) {
+  if (!soportado) return {}
+  const limpiar = (v: string) => v.trim().toUpperCase() || null
+  return {
+    marca: limpiar(form.marca),
+    medidas: limpiar(form.medidas),
+    modelo: limpiar(form.modelo),
+  }
 }
 
 export default function Productos() {
@@ -66,8 +88,9 @@ export default function Productos() {
   const [aEliminar, setAEliminar] = useState<Producto | null>(null)
   const [eliminando, setEliminando] = useState(false)
 
-  // Importación de listas (Excel / CSV)
+  // Importación de listas (Excel / CSV) y lista de precios imprimible
   const [modalImportar, setModalImportar] = useState(false)
+  const [modalLista, setModalLista] = useState(false)
 
   // Aumento masivo
   const [modalAumento, setModalAumento] = useState(false)
@@ -93,6 +116,9 @@ export default function Productos() {
       }))
     )
   }
+
+  // Si falta ejecutar migration_lista_precios.sql, se ocultan esos campos
+  const conCatalogo = soportaCatalogo(productos)
 
   const categorias = useMemo(() => {
     const set = new Set(CATEGORIAS_BASE)
@@ -162,6 +188,7 @@ export default function Productos() {
             codigo: form.codigo.trim(),
             descripcion: form.descripcion.trim(),
             categoria: form.categoria,
+            ...datosCatalogo(form, conCatalogo),
             precio_unitario: precio,
             stock_minimo: stockMinimo,
           })
@@ -188,6 +215,7 @@ export default function Productos() {
           .update({
             descripcion: form.descripcion.trim(),
             categoria: form.categoria,
+            ...datosCatalogo(form, conCatalogo),
             precio_unitario: precio,
             stock_minimo: stockMinimo,
             fecha_actualizacion: new Date().toISOString(),
@@ -278,6 +306,14 @@ export default function Productos() {
             <Button variant="secondary" onClick={() => setModalImportar(true)} disabled={!productos}>
               <IconUpload className="h-5 w-5" />
               Importar
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => setModalLista(true)}
+              disabled={!productos || productos.length === 0}
+            >
+              <IconDocumentList className="h-5 w-5" />
+              Lista de precios
             </Button>
             <Button
               variant="secondary"
@@ -372,6 +408,9 @@ export default function Productos() {
                                 codigo: p.codigo ?? '',
                                 descripcion: p.descripcion,
                                 categoria: p.categoria ?? CATEGORIAS_BASE[0],
+                                marca: p.marca ?? '',
+                                medidas: p.medidas ?? '',
+                                modelo: p.modelo ?? '',
                                 precio: String(p.precio_unitario),
                                 stockMinimo: String(p.stock_minimo),
                                 stockInicial: '0',
@@ -472,6 +511,34 @@ export default function Productos() {
                 placeholder="Descripción del producto"
               />
             </div>
+            {conCatalogo && (
+            <div className="grid grid-cols-2 gap-4 sm:col-span-2 sm:grid-cols-3">
+              <Input
+                label="Marca"
+                id="prod-marca"
+                className="uppercase"
+                value={form.marca}
+                onChange={(e) => setForm({ ...form, marca: e.target.value })}
+                placeholder="Ej: BLACK & DECKER"
+              />
+              <Input
+                label="Medidas"
+                id="prod-medidas"
+                className="uppercase"
+                value={form.medidas}
+                onChange={(e) => setForm({ ...form, medidas: e.target.value })}
+                placeholder="Ej: 6x8x16"
+              />
+              <Input
+                label="Modelo (MOD)"
+                id="prod-modelo"
+                className="uppercase"
+                value={form.modelo}
+                onChange={(e) => setForm({ ...form, modelo: e.target.value })}
+                placeholder="Ej: 5"
+              />
+            </div>
+            )}
             <Input
               label="Precio unitario *"
               id="prod-precio"
@@ -525,6 +592,14 @@ export default function Productos() {
         productos={productos ?? []}
         categorias={categorias}
         onImportado={cargar}
+      />
+
+      {/* Modal lista de precios imprimible */}
+      <ListaPreciosModal
+        open={modalLista}
+        onClose={() => setModalLista(false)}
+        productos={productos ?? []}
+        onActualizado={cargar}
       />
 
       {/* Modal aumento masivo */}

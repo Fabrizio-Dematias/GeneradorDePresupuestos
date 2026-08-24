@@ -34,11 +34,12 @@ export interface RemitoPDFData {
   anulado?: boolean
 }
 
-const EMPRESA = {
+export const EMPRESA = {
   nombre: 'DICOR CARBONES Y REPUESTOS',
   titular: 'de Fabrizio Dematias',
   direccion: 'Los Cóndores 4814 - B° Alejandro Centeno - Córdoba',
   email: 'dicorcarbones@gmail.com',
+  telefono: '3513676695',
   cuit: '20-42258265-8',
 }
 
@@ -49,7 +50,8 @@ const TEXT_LINE_H = 12 // alto de línea del texto envuelto (fuente 10)
 
 let logoCache: { dataUrl: string; width: number; height: number } | null = null
 
-async function cargarLogo() {
+/** Logo del negocio ya medido, listo para addImage (se cachea entre PDFs). */
+export async function cargarLogo() {
   if (logoCache) return logoCache
   try {
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {

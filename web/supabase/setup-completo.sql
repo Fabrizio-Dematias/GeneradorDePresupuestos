@@ -29,6 +29,11 @@ create table if not exists productos (
     descripcion text not null,
     precio_unitario numeric(12,2) not null,
     categoria text default 'CARBONES',
+    -- Datos de catálogo, opcionales: los usa la lista de precios en PDF
+    -- (se agrupa por marca y muestra las columnas MEDIDAS y MOD).
+    marca text,
+    medidas text,
+    modelo text,
     -- Control de stock: cantidad en depósito y umbral de alerta de reposición.
     stock integer not null default 0,
     stock_minimo integer not null default 0,

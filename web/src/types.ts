@@ -4,6 +4,10 @@ export interface Producto {
   descripcion: string
   precio_unitario: number
   categoria: string
+  /** Datos de catálogo, opcionales: los usa la lista de precios en PDF. */
+  marca: string | null
+  medidas: string | null
+  modelo: string | null
   stock: number
   stock_minimo: number
   fecha_actualizacion: string | null
@@ -98,6 +102,18 @@ export const CATEGORIAS_BASE = [
   'REPUESTOS VARIOS',
   'RULEMANES Y CUBETAS',
 ]
+
+/**
+ * ¿La base ya tiene las columnas de catálogo (marca/medidas/modelo)?
+ *
+ * Se detecta mirando lo que devuelve `select *`: si todavía no se ejecutó
+ * `migration_lista_precios.sql`, esas columnas no vienen y la app evita
+ * mandarlas (así seguir usando el sistema no da error).
+ */
+export function soportaCatalogo(productos: Producto[] | null | undefined): boolean {
+  if (!productos || productos.length === 0) return true
+  return 'marca' in productos[0]
+}
 
 /** Estado del stock de un producto, para el "semáforo" del inventario. */
 export type EstadoStock = 'sin' | 'bajo' | 'ok'

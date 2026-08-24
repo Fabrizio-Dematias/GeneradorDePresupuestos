@@ -18,6 +18,11 @@ export function formatNumero(value: number): string {
   return numero.format(value)
 }
 
+/** "1 producto" / "3 productos": evita el clásico "1 productos". */
+export function plural(cantidad: number, singular: string, enPlural?: string): string {
+  return `${cantidad} ${cantidad === 1 ? singular : enPlural ?? `${singular}s`}`
+}
+
 /** '2026-02-10' o ISO timestamp → '10/02/2026' */
 export function formatFecha(value: string | null): string {
   if (!value) return ''

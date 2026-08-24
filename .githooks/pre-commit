@@ -1,0 +1,28 @@
+#!/bin/sh
+# Sube la versión (patch) de web/package.json en cada commit y la incluye en
+# el commit, así la versión que muestra el sistema abajo a la izquierda
+# identifica exactamente el código que está corriendo.
+#
+# Para activarlo, una sola vez por copia del repo:
+#   git config core.hooksPath .githooks
+#
+# Para saltearlo en un commit puntual:
+#   SIN_VERSION=1 git commit -m "..."
+
+[ -n "$SIN_VERSION" ] && exit 0
+
+raiz=$(git rev-parse --show-toplevel) || exit 0
+cd "$raiz" || exit 0
+
+# Si la versión ya se cambió a mano en este commit, no se toca
+if git diff --cached -U0 -- web/package.json | grep -q '^+.*"version"'; then
+  exit 0
+fi
+
+if ! node web/scripts/subir-version.mjs patch; then
+  echo "pre-commit: no se pudo subir la versión, el commit sigue igual" >&2
+  exit 0
+fi
+
+git add web/package.json
+exit 0

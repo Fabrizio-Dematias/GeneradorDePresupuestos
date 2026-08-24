@@ -5,18 +5,18 @@
  */
 
 const productos = [
-  { id: 541, codigo: '401', descripcion: 'TAL modo P8020 /P5411 - Sierra Circular modo Ks81 O 6x8x16', precio_unitario: 1597.12, categoria: 'CARBONES', stock: 8, stock_minimo: 10, fecha_actualizacion: '2026-02-10T02:10:53' },
-  { id: 542, codigo: '402', descripcion: 'AM. 41/2" SEG 500-TAL 10 mm.Mod.BDI52/154 6,3x6,3x15', precio_unitario: 1014.93, categoria: 'CARBONES', stock: 0, stock_minimo: 5, fecha_actualizacion: '2026-02-10T02:10:53' },
-  { id: 538, codigo: '61001', descripcion: 'LAZO NUEVO 8x9x30', precio_unitario: 3953.48, categoria: 'CARBONES', stock: 150, stock_minimo: 50, fecha_actualizacion: '2026-02-10T02:10:53' },
-  { id: 539, codigo: '61002', descripcion: 'LAZO GRANDE 6x18x32', precio_unitario: 4735.49, categoria: 'CARBONES', stock: 30, stock_minimo: 40, fecha_actualizacion: '2026-02-10T02:10:53' },
-  { id: 700, codigo: '699', descripcion: 'CARBONES BOSCH GSB 13 RE', precio_unitario: 1200, categoria: 'CARBONES', stock: 0, stock_minimo: 0, fecha_actualizacion: '2026-03-01T10:00:00' },
-  { id: 801, codigo: '1031', descripcion: 'CUBETA Ø22 - 608 - 627', precio_unitario: 713.08, categoria: 'RULEMANES Y CUBETAS', stock: 200, stock_minimo: 50, fecha_actualizacion: '2026-02-20T10:00:00' },
-  { id: 802, codigo: '1032', descripcion: 'CUBETA Ø24 - 609', precio_unitario: 860.97, categoria: 'RULEMANES Y CUBETAS', stock: 12, stock_minimo: 20, fecha_actualizacion: '2026-02-20T10:00:00' },
-  { id: 803, codigo: '2001', descripcion: 'CAPACITOR 450V 25uF', precio_unitario: 5230.5, categoria: 'CAPACITORES', stock: 45, stock_minimo: 10, fecha_actualizacion: '2026-02-22T10:00:00' },
-  { id: 804, codigo: '2002', descripcion: 'CAPACITOR 450V 40uF', precio_unitario: 6890, categoria: 'CAPACITORES', stock: 5, stock_minimo: 8, fecha_actualizacion: '2026-02-22T10:00:00' },
-  { id: 805, codigo: '3001', descripcion: 'INTERRUPTOR AMOLADORA 5/8', precio_unitario: 3120.75, categoria: 'INTERRUPTORES', stock: 0, stock_minimo: 3, fecha_actualizacion: '2026-02-25T10:00:00' },
-  { id: 806, codigo: '4001', descripcion: 'PIÑÓN TALADRO 13mm', precio_unitario: 2480, categoria: 'REPUESTOS VARIOS', stock: 60, stock_minimo: 15, fecha_actualizacion: '2026-03-02T10:00:00' },
-  { id: 807, codigo: '4002', descripcion: 'MANDRIL 13mm C/LLAVE', precio_unitario: 8975.25, categoria: 'REPUESTOS VARIOS', stock: 3, stock_minimo: 0, fecha_actualizacion: '2026-03-02T10:00:00' },
+  { id: 541, codigo: '401', marca: 'BLACK & DECKER', medidas: '6x8x16', modelo: '5', descripcion: 'TAL modo P8020 /P5411 - Sierra Circular modo Ks81 O 6x8x16', precio_unitario: 1597.12, categoria: 'CARBONES', stock: 8, stock_minimo: 10, fecha_actualizacion: '2026-02-10T02:10:53' },
+  { id: 542, codigo: '402', marca: 'BLACK & DECKER', medidas: '6,3x6,3x15', modelo: '11', descripcion: 'AM. 41/2" SEG 500-TAL 10 mm.Mod.BDI52/154 6,3x6,3x15', precio_unitario: 1014.93, categoria: 'CARBONES', stock: 0, stock_minimo: 5, fecha_actualizacion: '2026-02-10T02:10:53' },
+  { id: 538, codigo: '61001', marca: 'ASINCRON Y SISTEMAS DE AIRE ACONDICIONADO', medidas: '8x9x30', modelo: '1', descripcion: 'LAZO NUEVO 8x9x30', precio_unitario: 3953.48, categoria: 'CARBONES', stock: 150, stock_minimo: 50, fecha_actualizacion: '2026-02-10T02:10:53' },
+  { id: 539, codigo: '61002', marca: 'ASINCRON Y SISTEMAS DE AIRE ACONDICIONADO', medidas: null, modelo: '2', descripcion: 'LAZO GRANDE 6x18x32', precio_unitario: 4735.49, categoria: 'CARBONES', stock: 30, stock_minimo: 40, fecha_actualizacion: '2026-02-10T02:10:53' },
+  { id: 700, codigo: '699', marca: 'BLACK & DECKER', medidas: '4,8x7,8x12', modelo: '13', descripcion: 'CARBONES BOSCH GSB 13 RE', precio_unitario: 1200, categoria: 'CARBONES', stock: 0, stock_minimo: 0, fecha_actualizacion: '2026-03-01T10:00:00' },
+  { id: 801, codigo: '1031', marca: null, medidas: null, modelo: null, descripcion: 'CUBETA Ø22 - 608 - 627', precio_unitario: 713.08, categoria: 'RULEMANES Y CUBETAS', stock: 200, stock_minimo: 50, fecha_actualizacion: '2026-02-20T10:00:00' },
+  { id: 802, codigo: '1032', marca: null, medidas: null, modelo: null, descripcion: 'CUBETA Ø24 - 609', precio_unitario: 860.97, categoria: 'RULEMANES Y CUBETAS', stock: 12, stock_minimo: 20, fecha_actualizacion: '2026-02-20T10:00:00' },
+  { id: 803, codigo: '2001', marca: null, medidas: null, modelo: null, descripcion: 'CAPACITOR 450V 25uF', precio_unitario: 5230.5, categoria: 'CAPACITORES', stock: 45, stock_minimo: 10, fecha_actualizacion: '2026-02-22T10:00:00' },
+  { id: 804, codigo: '2002', marca: null, medidas: null, modelo: null, descripcion: 'CAPACITOR 450V 40uF', precio_unitario: 6890, categoria: 'CAPACITORES', stock: 5, stock_minimo: 8, fecha_actualizacion: '2026-02-22T10:00:00' },
+  { id: 805, codigo: '3001', marca: null, medidas: null, modelo: null, descripcion: 'INTERRUPTOR AMOLADORA 5/8', precio_unitario: 3120.75, categoria: 'INTERRUPTORES', stock: 0, stock_minimo: 3, fecha_actualizacion: '2026-02-25T10:00:00' },
+  { id: 806, codigo: '4001', marca: null, medidas: null, modelo: null, descripcion: 'PIÑÓN TALADRO 13mm', precio_unitario: 2480, categoria: 'REPUESTOS VARIOS', stock: 60, stock_minimo: 15, fecha_actualizacion: '2026-03-02T10:00:00' },
+  { id: 807, codigo: '4002', marca: null, medidas: null, modelo: null, descripcion: 'MANDRIL 13mm C/LLAVE', precio_unitario: 8975.25, categoria: 'REPUESTOS VARIOS', stock: 3, stock_minimo: 0, fecha_actualizacion: '2026-03-02T10:00:00' },
 ]
 
 const remitos = [

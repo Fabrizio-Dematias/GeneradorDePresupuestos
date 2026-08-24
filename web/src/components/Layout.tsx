@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { LOGO_DATA_URL } from '../lib/logo'
+import { VERSION_CORTA, versionDetallada } from '../lib/version'
 import {
   IconArchiveBox,
   IconBanknotes,
@@ -113,6 +114,13 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           <IconLogout className="h-5 w-5" />
           Cerrar sesión
         </button>
+        {/* Versión en la que está corriendo el sistema (la sube cada commit) */}
+        <p
+          className="select-text px-3 pt-2 font-mono text-[11px] text-brand-200/50"
+          title={versionDetallada()}
+        >
+          {VERSION_CORTA}
+        </p>
       </div>
     </div>
   )

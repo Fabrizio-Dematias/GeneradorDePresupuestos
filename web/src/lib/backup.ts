@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { fechaParaArchivo } from './csv'
+import { COMMIT, VERSION } from './version'
 
 /**
  * Backup completo: descarga todas las tablas del negocio en un único
@@ -37,7 +38,13 @@ export async function descargarBackup(): Promise<number> {
     totalFilas += filas.length
   }
 
-  const contenido = JSON.stringify({ generado: new Date().toISOString(), tablas }, null, 1)
+  // Queda registrada la versión que generó el backup: si hay que restaurar,
+  // se sabe con qué código se exportó.
+  const contenido = JSON.stringify(
+    { generado: new Date().toISOString(), version: VERSION, commit: COMMIT, tablas },
+    null,
+    1
+  )
   const blob = new Blob([contenido], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')

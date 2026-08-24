@@ -132,6 +132,54 @@ Los precios se leen en formato argentino (`$ 1.234,56`). Cada cambio de precio q
 registrado en el **Historial de precios**, igual que un aumento masivo. Si el archivo
 trae una columna de stock inicial, se carga como movimiento de ingreso auditado.
 
+También entiende las listas armadas como catálogo (una foto por producto): toma el
+precio de la celda combinada aunque esté en otra fila, junta las descripciones
+partidas en dos renglones e ignora los títulos y los encabezados repetidos.
+
+### Lista de precios para imprimir
+
+**Productos → Lista de precios** genera el PDF de la lista que se imprime para el
+mostrador, con el logo y los datos del negocio arriba y el pie con las aclaraciones
+y el mes de vigencia.
+
+- Una hoja por categoría, con el título que le pongas (queda guardado para la próxima).
+- Dentro de la hoja, los productos se agrupan por **marca**, con las columnas
+  CODIGO / DESCRIPCION / MEDIDAS / MOD / PRECIO.
+- Las columnas MEDIDAS y MOD salen solo en las categorías que las usan.
+- El orden de las hojas se acomoda con las flechas.
+
+Los campos **marca**, **medidas** y **modelo** son opcionales y se cargan desde el
+formulario del producto o desde el importador. Requiere ejecutar una vez
+`supabase/migration_lista_precios.sql` (agrega esas tres columnas; no toca los datos).
+Si las medidas quedaron dentro de la descripción (`LAZO NUEVO 8x9x30`), la misma
+pantalla ofrece separarlas a su columna, con vista previa producto por producto.
+
+## 🔖 Versión del sistema
+
+Abajo de todo en el menú lateral se ve la versión que está corriendo, por
+ejemplo `v1.1.0 · 9841233`: el número de versión y el commit con el que se
+compiló. Pasando el mouse por encima muestra también la fecha. Con ese commit
+se puede volver exactamente a ese código (`git checkout 9841233`) si algo sale
+mal. El backup JSON también guarda la versión con la que se generó.
+
+La versión sube sola en cada commit. **Activarlo una sola vez por cada copia
+del repo:**
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Desde ahí, cada `git commit` sube el último número (`1.1.0` → `1.1.1`) e
+incluye el `package.json` en el mismo commit. Para un cambio grande conviene
+subirlo a mano antes de commitear:
+
+```bash
+node web/scripts/subir-version.mjs minor   # 1.1.1 → 1.2.0 (funciones nuevas)
+node web/scripts/subir-version.mjs major   # 1.2.0 → 2.0.0 (cambio grande)
+```
+
+Para saltear el aumento en un commit puntual: `SIN_VERSION=1 git commit -m "..."`.
+
 ## 🧾 Formato del PDF
 
 El PDF mantiene el formato del sistema original: logo y datos del negocio,
