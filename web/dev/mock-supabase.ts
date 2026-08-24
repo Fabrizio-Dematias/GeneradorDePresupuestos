@@ -19,6 +19,12 @@ const productos = [
   { id: 807, codigo: '4002', marca: null, medidas: null, modelo: null, descripcion: 'MANDRIL 13mm C/LLAVE', precio_unitario: 8975.25, categoria: 'REPUESTOS VARIOS', stock: 3, stock_minimo: 0, fecha_actualizacion: '2026-03-02T10:00:00' },
 ]
 
+// Logos de ejemplo (imágenes generadas, no son logos reales de marcas)
+const marcas = [
+  { nombre: 'BLACK & DECKER', logo: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAggAAABuCAIAAADNrHxaAAABeklEQVR42u3doQ0AQAgEQcog+f7rBId9S8hcpgLMSiLzAcAIJwBAGAAQBgCEAQBhAEAYABAGAIQBAGEAQBgAEAYAhAEAYQBAGAAQBgCEAQBhAEAYABAGAIQBAIQBAGEAQBgAEAYAhAEAYQBAGAAQBgCEAQBhAEAYABAGAIQBAGEAQBgAEAYAhAEAYQBAGNYoM7OLEwZhMDMTBmEwMxMGYTAzEwZhMDMTBmEwMxMGYTAzEwZhMDMTBmEwMxMGYTAzEwZhMDMTBmEwMxMGYTAzEwZhMDMTBmEwMxMGYTAzEwaPegAQBgCEAQBhAEAYABAGAIQBAGEAQBgAEAYAhAEAYQBAGABAGAAQBgCEAQBhAEAYABAGAIQBAGEAQBgAEAYAhAEAYQBAGAAQBgCEAQBhAEAYABAGAIQBAGEAAGEAQBgAEAYAhAEAYQBAGAAQBgCEAQBhAEAYABAGAIQBAGEAQBgAEAYAhAEAYQBAGAAQBgCEAQCEAQBhAOCvAWIOZprmkaXkAAAAAElFTkSuQmCC', fecha_actualizacion: '2026-08-24T10:00:00' },
+  { nombre: 'ASINCRON Y SISTEMAS DE AIRE ACONDICIONADO', logo: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAACCCAIAAABzfmIIAAABSUlEQVR42u3csQkAMAhFQSdJ7f64n9nBxhDucxMIrzXqJLAonABECCIERAgiBEQIIgRECCIERAgiBEQIIgRECCIERAgiBEQIIgRECCIERAgiBEQIIgRECCIERAgiBEQIIgRECCIERAgiBEQIIgRECCIERAgiBEQIIgRECCIEXoiwzX6ZCM1EKEIToQjNRChCE6EIzUQoQhOhCM1EKEIToQjNRChCE6EIzUQoQhOhCM1EKEIToQjNRChCE6EIzUQoQhOhHzPgxwwgQhAhIEIQISBCECEgQhAhIEIQISBCECEgQhAhIEIQISBCECEgQhAhIEIQISBCECEgQhAhiNAVQIQgQkCEIEJAhCBCQIQgQkCEIEJAhCBCQIQgQkCEIEJAhCBCQIQgQkCEIEJAhCBCQIQgQkCEIEJAhCBCQIQgQkCEIEJAhCBCYOQCt2V/8BazYF0AAAAASUVORK5CYII=', fecha_actualizacion: '2026-08-24T10:00:00' },
+]
+
 const remitos = [
   { id: 23, numero: '0001-008', fecha: '2026-06-08', cliente_nombre: 'Antonio Arone', cliente_domicilio: '', cliente_cuit: '20-11222333-4', condicion_iva: 'Resp. Inscripto', condicion_venta: 'Cuenta Corriente', total: 215918.87, estado: 'Completado', ruta_pdf: 'remito_Antonio_Arone_0001-008.pdf', fecha_creacion: '2026-06-08T22:21:22' },
   { id: 22, numero: '0001-007', fecha: '2026-05-15', cliente_nombre: 'Gustavo Clara', cliente_domicilio: 'Av. Colón 1234, Córdoba', cliente_cuit: '', condicion_iva: 'Consumidor Final', condicion_venta: 'Contado', total: 2513843.97, estado: 'Completado', ruta_pdf: '', fecha_creacion: '2026-05-15T20:41:35' },
@@ -78,7 +84,7 @@ const user_profiles = [
   { id: 'u1', username: 'fabrizio', email: 'dicorcarbones@gmail.com' },
 ]
 
-const DB: Record<string, any[]> = { productos, remitos, remito_items, historial_precios, movimientos_stock, clientes, user_profiles }
+const DB: Record<string, any[]> = { productos, marcas, remitos, remito_items, historial_precios, movimientos_stock, clientes, user_profiles }
 
 function crearBuilder(table: string) {
   const state = {

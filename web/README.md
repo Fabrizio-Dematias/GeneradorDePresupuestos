@@ -141,6 +141,10 @@ Cuando el archivo trae los productos en bloques —uno por marca, como las lista
 carbones— los detecta y muestra **el logo de cada bloque sacado del propio Excel**
 con un campo al lado para escribir la marca; los bloques cuya marca está escrita
 vienen completados. Así se carga la marca de una vez aunque en el Excel sea una imagen.
+Al importar, **el logo queda guardado** (tabla `marcas`) y se usa después en la lista
+de precios en PDF: cada bloque sale encabezado por el logo, como en la lista impresa.
+Requiere ejecutar una vez `supabase/migration_marcas.sql`; sin eso la lista sale igual,
+con el nombre de la marca en texto.
 
 Dos casos que resuelve solo: el mismo código repetido en varias marcas se carga una
 sola vez (si tiene dos precios distintos, lo marca como error para que lo revises),

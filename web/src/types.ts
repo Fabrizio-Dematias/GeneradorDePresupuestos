@@ -29,6 +29,12 @@ export interface MovimientoStock {
   fecha: string
 }
 
+export interface Marca {
+  nombre: string
+  logo: string | null
+  fecha_actualizacion?: string | null
+}
+
 export interface Cliente {
   id: number
   nombre: string

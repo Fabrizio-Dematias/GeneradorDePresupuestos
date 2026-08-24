@@ -11,6 +11,7 @@ import { COMMIT, VERSION } from './version'
 const TABLAS = [
   'clientes',
   'productos',
+  'marcas',
   'remitos',
   'remito_items',
   'historial_precios',

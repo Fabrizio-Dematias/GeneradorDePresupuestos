@@ -17,7 +17,7 @@ import { generarListaPreciosDoc, type ListaPreciosData } from '../lib/pdfLista'
 import { Badge, Button, Input, Modal } from './ui'
 import { IconAlert, IconDownload, IconEye } from './icons'
 import { useToast } from './Toast'
-import { soportaCatalogo, type Producto } from '../types'
+import { soportaCatalogo, type Marca, type Producto } from '../types'
 
 const CLAVE_PREFERENCIAS = 'dicor-lista-precios'
 
@@ -60,6 +60,7 @@ export default function ListaPreciosModal({
   const [aplicando, setAplicando] = useState(false)
   const [progreso, setProgreso] = useState(0)
   const [omitidos, setOmitidos] = useState<Set<number>>(new Set())
+  const [logosMarcas, setLogosMarcas] = useState<Record<string, string>>({})
 
   // Preferencias guardadas (títulos y pie) al abrir
   useEffect(() => {
@@ -79,6 +80,26 @@ export default function ListaPreciosModal({
       }
     } catch {
       // preferencias corruptas: se usan las por defecto
+    }
+  }, [open])
+
+  // Logos de las marcas: van en el encabezado de cada bloque del PDF
+  useEffect(() => {
+    if (!open) return
+    let cancelado = false
+    ;(async () => {
+      // Si todavía no se ejecutó migration_marcas.sql, la lista sale con el
+      // nombre de la marca en texto y listo.
+      const { data, error } = await supabase.from('marcas').select('nombre, logo')
+      if (error || cancelado) return
+      const mapa: Record<string, string> = {}
+      for (const marca of (data ?? []) as Marca[]) {
+        if (marca.logo) mapa[(marca.nombre ?? '').trim().toUpperCase()] = marca.logo
+      }
+      setLogosMarcas(mapa)
+    })()
+    return () => {
+      cancelado = true
     }
   }, [open])
 
@@ -192,7 +213,7 @@ export default function ListaPreciosModal({
           precio_unitario: p.precio_unitario,
         })),
     }))
-    return { secciones, pie: prefs.pie }
+    return { secciones, pie: prefs.pie, logos: logosMarcas }
   }
 
   async function generar(accion: 'ver' | 'descargar') {

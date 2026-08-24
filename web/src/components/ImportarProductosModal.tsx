@@ -10,6 +10,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { formatARS, plural } from '../lib/format'
 import { exportarCSV } from '../lib/csv'
+import { achicarImagen } from '../lib/imagenes'
 import { Badge, Button, Input, Modal, Segmented, Select } from './ui'
 import { IconAlert, IconCheck, IconUpload, IconX } from './icons'
 import { useToast } from './Toast'
@@ -262,6 +263,7 @@ export default function ImportarProductosModal({
     setImportando(true)
     setProgreso(0)
     let avisoHistorial = false
+    let avisoMarcas = false
 
     try {
       // 1. Alta y actualización (upsert por código). Los productos nuevos van
@@ -356,12 +358,40 @@ export default function ImportarProductosModal({
         }
       }
 
+      // 4. Logos de las marcas nombradas, para la lista de precios en PDF
+      if (pedirMarcas) {
+        const porNombre = new Map<string, string>()
+        bloques.forEach((_, i) => {
+          const nombre = (marcasBloques[i] ?? '').trim().toUpperCase()
+          if (nombre && logos[i] && !porNombre.has(nombre)) porNombre.set(nombre, logos[i])
+        })
+        if (porNombre.size > 0) {
+          const payload = await Promise.all(
+            Array.from(porNombre, async ([nombre, logo]) => ({
+              nombre,
+              logo: await achicarImagen(logo),
+              fecha_actualizacion: ahora,
+            }))
+          )
+          const { error: errorMarcas } = await supabase
+            .from('marcas')
+            .upsert(payload, { onConflict: 'nombre' })
+          if (errorMarcas) avisoMarcas = true
+        }
+      }
+
       const partes = [
         nuevos.length > 0 ? `${plural(nuevos.length, 'producto')} ${nuevos.length === 1 ? 'nuevo' : 'nuevos'}` : '',
         actualiza.length > 0 ? `${actualiza.length} actualizados` : '',
       ].filter(Boolean)
       toast('success', `Importación lista: ${partes.join(' y ')}.`)
       if (avisoHistorial) toast('error', 'Los precios se actualizaron, pero no se pudo escribir el historial.')
+      if (avisoMarcas) {
+        toast(
+          'error',
+          'Los productos se cargaron, pero no se guardaron los logos: falta ejecutar migration_marcas.sql en Supabase.'
+        )
+      }
 
       onImportado()
       reiniciar()

@@ -2,6 +2,7 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { formatARS } from './format'
 import { EMPRESA, cargarLogo } from './pdf'
+import { medirImagen } from './imagenes'
 
 /**
  * Lista de precios imprimible (PDF).
@@ -39,6 +40,9 @@ export interface PieLista {
 export interface ListaPreciosData {
   secciones: SeccionLista[]
   pie: PieLista
+  /** Logo de cada marca (nombre en mayúscula → data URL), para el encabezado
+   *  de cada bloque, igual que en la lista impresa. */
+  logos?: Record<string, string>
 }
 
 const MARGIN = 36
@@ -66,6 +70,15 @@ export async function generarListaPreciosDoc(data: ListaPreciosData): Promise<js
 
   const secciones = data.secciones.filter((s) => s.productos.length > 0)
   if (secciones.length === 0) throw new Error('No hay productos para incluir en la lista.')
+
+  // Se miden los logos una sola vez para respetar su proporción al dibujarlos
+  const logos = new Map<string, { dataUrl: string; ancho: number; alto: number }>()
+  for (const [nombre, dataUrl] of Object.entries(data.logos ?? {})) {
+    const medida = await medirImagen(dataUrl)
+    if (medida && medida.ancho > 0 && medida.alto > 0) {
+      logos.set(nombre.trim().toUpperCase(), { dataUrl, ...medida })
+    }
+  }
 
   /**
    * Columnas de una hoja: MEDIDAS y MOD solo aparecen si esa categoría las
@@ -145,12 +158,19 @@ export async function generarListaPreciosDoc(data: ListaPreciosData): Promise<js
 
     for (const grupo of agruparPorMarca(seccion.productos)) {
       const head: any[] = []
+      const logoMarca = grupo.marca ? logos.get(grupo.marca) : undefined
       if (grupo.marca) {
         head.push([
           {
-            content: grupo.marca,
+            // Con logo, la celda va vacía y la imagen se dibuja encima
+            content: logoMarca ? '' : grupo.marca,
             colSpan: encabezados.length,
-            styles: { halign: 'center', fontStyle: 'bold', fontSize: 12, minCellHeight: 26 },
+            styles: {
+              halign: 'center',
+              fontStyle: 'bold',
+              fontSize: 12,
+              minCellHeight: logoMarca ? 44 : 26,
+            },
           },
         ])
       }
@@ -191,6 +211,24 @@ export async function generarListaPreciosDoc(data: ListaPreciosData): Promise<js
           return fila
         }),
         didDrawPage: dibujarEncabezado,
+        didDrawCell: (celda: any) => {
+          // El logo de la marca, centrado en la fila del título del bloque
+          if (!logoMarca || celda.section !== 'head' || celda.row.index !== 0) return
+          const alto = celda.cell.height - 6
+          const ancho = celda.cell.width * 0.55
+          const escala = Math.min(ancho / logoMarca.ancho, alto / logoMarca.alto)
+          const w = logoMarca.ancho * escala
+          const h = logoMarca.alto * escala
+          doc.addImage(
+            logoMarca.dataUrl,
+            'PNG',
+            celda.cell.x + (celda.cell.width - w) / 2,
+            celda.cell.y + (celda.cell.height - h) / 2,
+            w,
+            h,
+            grupo.marca
+          )
+        },
       })
 
       y = (doc as any).lastAutoTable.finalY + 16
