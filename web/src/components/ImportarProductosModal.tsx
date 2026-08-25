@@ -34,6 +34,8 @@ import { soportaCatalogo, type Producto } from '../types'
 const CATEGORIA_NUEVA = '__nueva__'
 const FILAS_VISTA_PREVIA = 60
 const TANDA = 200
+/** Updates en paralelo: uno por producto, de a poquitos. */
+const CONCURRENCIA = 8
 
 const ESTADOS: Record<EstadoFila, { etiqueta: string; color: 'green' | 'blue' | 'slate' | 'red' }> = {
   nuevo: { etiqueta: 'Nuevo', color: 'green' },
@@ -291,22 +293,34 @@ export default function ImportarProductosModal({
         return fila
       }
 
-      const grupos: [typeof nuevos, boolean][] = [
-        [nuevos, true],
-        [actualiza, !respetarPrecios],
-      ]
-      for (const [filasGrupo, conPrecio] of grupos) {
-        for (const tanda of tandas(filasGrupo, TANDA)) {
-          const { error: errorUpsert } = await supabase
-            .from('productos')
-            .upsert(
-              tanda.map((f) => armarFila(f, conPrecio)),
-              { onConflict: 'codigo' }
-            )
-          if (errorUpsert) throw errorUpsert
-          hechos += tanda.length
-          setProgreso(hechos)
-        }
+      // Altas: upsert por código, con todas las columnas obligatorias.
+      for (const tanda of tandas(nuevos, TANDA)) {
+        const { error: errorAlta } = await supabase
+          .from('productos')
+          .upsert(
+            tanda.map((f) => armarFila(f, true)),
+            { onConflict: 'codigo' }
+          )
+        if (errorAlta) throw errorAlta
+        hechos += tanda.length
+        setProgreso(hechos)
+      }
+
+      // Actualizaciones: update por código, NO upsert. Con "no cambiar los
+      // precios" la fila va sin precio_unitario, y un upsert la arma como si
+      // fuera un alta: Postgres la rechaza por el not-null aunque ya exista.
+      for (let i = 0; i < actualiza.length; i += CONCURRENCIA) {
+        const tanda = actualiza.slice(i, i + CONCURRENCIA)
+        const resultados = await Promise.all(
+          tanda.map((f) => {
+            const { codigo, ...cambios } = armarFila(f, !respetarPrecios)
+            return supabase.from('productos').update(cambios).eq('codigo', codigo)
+          })
+        )
+        const fallo = resultados.find((r) => r.error)
+        if (fallo?.error) throw fallo.error
+        hechos += tanda.length
+        setProgreso(hechos)
       }
 
       // 2. Historial de los precios que cambiaron
