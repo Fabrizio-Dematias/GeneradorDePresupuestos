@@ -102,6 +102,7 @@ create table if not exists movimientos_stock (
     fecha timestamptz default now()
 );
 
+create index if not exists idx_productos_categoria_marca on productos (categoria, marca);
 create index if not exists idx_remito_items_remito on remito_items (remito_id);
 create index if not exists idx_remitos_fecha on remitos (fecha);
 create index if not exists idx_historial_fecha on historial_precios (fecha_cambio desc);

@@ -55,11 +55,6 @@ const VERDE: [number, number, number] = [22, 120, 55]
 /** Alto reservado arriba en cada hoja (logo + contacto + título de sección). */
 const ENCABEZADO_ALTO = LOGO_MAX_H + 16 + TITULO_H
 
-export async function generarListaPreciosPDF(data: ListaPreciosData, nombreArchivo: string) {
-  const doc = await generarListaPreciosDoc(data)
-  doc.save(nombreArchivo.endsWith('.pdf') ? nombreArchivo : `${nombreArchivo}.pdf`)
-}
-
 /** Arma el documento sin guardarlo (sirve para la vista previa y para probarlo). */
 export async function generarListaPreciosDoc(data: ListaPreciosData): Promise<jsPDF> {
   const doc = new jsPDF({ unit: 'pt', format: 'a4', compress: true })

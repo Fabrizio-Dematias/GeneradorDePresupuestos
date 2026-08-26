@@ -76,7 +76,10 @@ export default function ImportarProductosModal({
   const [importando, setImportando] = useState(false)
   const [progreso, setProgreso] = useState(0)
 
-  const filas = hojas?.[hojaIdx]?.filas ?? []
+  // useMemo, no una expresión suelta: sin esto el array cambia de identidad en
+  // cada render y arrastra a `bloques` y al efecto que carga las marcas, que se
+  // quedan re-ejecutándose sin parar.
+  const filas = useMemo(() => hojas?.[hojaIdx]?.filas ?? [], [hojas, hojaIdx])
   // Sin migration_lista_precios.sql no existen marca/medidas/modelo en la base
   const conCatalogo = soportaCatalogo(productos)
   const campos = CAMPOS.filter(

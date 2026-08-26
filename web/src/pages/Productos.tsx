@@ -123,6 +123,10 @@ export default function Productos() {
     )
   }
 
+  // Array estable para los modales: `productos ?? []` creaba uno nuevo en
+  // cada render y disparaba de más los useMemo/useEffect de adentro.
+  const listaProductos = useMemo(() => productos ?? [], [productos])
+
   // Si falta ejecutar migration_lista_precios.sql, se ocultan esos campos
   const conCatalogo = soportaCatalogo(productos)
 
@@ -595,7 +599,7 @@ export default function Productos() {
       <ImportarProductosModal
         open={modalImportar}
         onClose={() => setModalImportar(false)}
-        productos={productos ?? []}
+        productos={listaProductos}
         categorias={categorias}
         onImportado={cargar}
       />
@@ -604,7 +608,7 @@ export default function Productos() {
       <ListaPreciosModal
         open={modalLista}
         onClose={() => setModalLista(false)}
-        productos={productos ?? []}
+        productos={listaProductos}
         onActualizado={cargar}
       />
 
