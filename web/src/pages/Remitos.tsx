@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { filtroTexto } from '../lib/consultas'
 import { formatARS, formatFecha } from '../lib/format'
 import {
   Badge,
@@ -71,7 +72,7 @@ export default function Remitos() {
     const from = (pagina - 1) * POR_PAGINA
     let query = supabase.from('remitos').select('*', { count: 'exact' })
 
-    const q = busqueda.trim().replace(/[,()%]/g, ' ').trim()
+    const q = filtroTexto(busqueda)
     if (q) query = query.or(`numero.ilike.%${q}%,cliente_nombre.ilike.%${q}%`)
     if (desde) query = query.gte('fecha', desde)
     if (hasta) query = query.lte('fecha', hasta)
@@ -101,7 +102,7 @@ export default function Remitos() {
       const filas: Remito[] = []
       for (let desde_i = 0; ; desde_i += LOTE) {
         let query = supabase.from('remitos').select('*')
-        const q = busqueda.trim().replace(/[,()%]/g, ' ').trim()
+        const q = filtroTexto(busqueda)
         if (q) query = query.or(`numero.ilike.%${q}%,cliente_nombre.ilike.%${q}%`)
         if (desde) query = query.gte('fecha', desde)
         if (hasta) query = query.lte('fecha', hasta)

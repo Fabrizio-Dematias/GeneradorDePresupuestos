@@ -26,7 +26,7 @@ import {
 } from '../components/icons'
 import { useToast } from '../components/Toast'
 import MovimientoStockModal from '../components/MovimientoStockModal'
-import { traerTodas } from '../lib/consultas'
+import { filtroTexto, traerTodas } from '../lib/consultas'
 import { CATEGORIAS_BASE, estadoStock, type MovimientoStock, type Producto } from '../types'
 
 const POR_PAGINA = 25
@@ -97,7 +97,7 @@ export default function Stock() {
     let query = supabase.from('movimientos_stock').select('*', { count: 'exact' })
 
     if (tipoMov !== 'todos') query = query.eq('tipo', tipoMov)
-    const q = busquedaMov.trim().replace(/[,()%]/g, ' ').trim()
+    const q = filtroTexto(busquedaMov)
     if (q) {
       query = query.or(
         `producto_codigo.ilike.%${q}%,producto_descripcion.ilike.%${q}%,motivo.ilike.%${q}%`

@@ -197,6 +197,23 @@ node web/scripts/subir-version.mjs major   # 1.2.0 → 2.0.0 (cambio grande)
 
 Para saltear el aumento en un commit puntual: `SIN_VERSION=1 git commit -m "..."`.
 
+## 🔒 Seguridad
+
+- **Cabeceras**: el `vercel.json` de la raíz manda una política de contenido (CSP)
+  que solo deja cargar scripts propios y hablar con Supabase; cualquier intento de
+  mandar datos a otro dominio queda bloqueado por el navegador. Van también
+  `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy` y HSTS.
+  Por eso el script del modo oscuro vive en `public/tema.js` y no dentro del HTML:
+  así la CSP puede prohibir todo script inline sin excepciones.
+- **Búsquedas**: el texto que se escribe en los buscadores pasa siempre por
+  `filtroTexto()` (`lib/consultas.ts`), que le saca los caracteres que podrían
+  cambiar el significado del filtro que se manda a la base.
+- **Base de datos**: todas las tablas tienen RLS; sin iniciar sesión no se puede
+  leer ni escribir nada, ni siquiera con la clave pública que viaja en el navegador.
+- **Importación**: el lector de Excel corta la lectura si el archivo descomprime a
+  un tamaño desmedido, para que un archivo armado con mala intención no cuelgue la
+  pestaña.
+
 ## 🧾 Formato del PDF
 
 El PDF mantiene el formato del sistema original: logo y datos del negocio,

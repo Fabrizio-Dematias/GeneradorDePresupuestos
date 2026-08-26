@@ -1,6 +1,28 @@
 import { supabase } from './supabase'
 
 /**
+ * Deja el texto del usuario listo para meterlo en un filtro `or(...)` de
+ * PostgREST, que se arma como texto: `columna.ilike.%valor%`.
+ *
+ * Se quitan los caracteres que cambiarían el significado del filtro en vez
+ * de buscarse literalmente:
+ *   ,   separa condiciones  → permitiría agregar filtros nuevos
+ *   ( ) agrupan condiciones
+ *   %   comodín de ilike
+ *   *   comodín de ilike en PostgREST (buscar "*" traía todo)
+ *   \   carácter de escape
+ *
+ * Las comillas se dejan a propósito: las descripciones usan pulgadas
+ * (`AM. 41/2"`) y quitarlas rompería esas búsquedas.
+ */
+export function filtroTexto(texto: string): string {
+  return texto
+    .replace(/[,()%*\\]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/**
  * Trae TODAS las filas de una tabla, en tandas.
  *
  * Supabase corta las respuestas a 1000 filas por defecto (Settings → API →

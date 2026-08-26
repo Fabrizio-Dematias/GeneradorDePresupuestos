@@ -48,16 +48,21 @@ export async function leerXLSX(archivo: File): Promise<HojaExcel[]> {
     throw new Error('El archivo no parece un Excel válido (.xlsx). Si es un .xls viejo, guardalo como .xlsx o CSV.')
   }
 
-  const workbookXml = await textoDe(buf, zip.get('xl/workbook.xml'))
+  // Un solo presupuesto para todo el archivo: lo van gastando las partes
+  const presupuesto: Presupuesto = { restante: MAX_TOTAL }
+
+  const workbookXml = await textoDe(buf, zip.get('xl/workbook.xml'), presupuesto)
   if (!workbookXml) {
     throw new Error('El archivo no parece un Excel válido (.xlsx): no se encontró el libro adentro.')
   }
 
-  const textos = leerTextosCompartidos(await textoDe(buf, zip.get('xl/sharedStrings.xml')))
+  const textos = leerTextosCompartidos(
+    await textoDe(buf, zip.get('xl/sharedStrings.xml'), presupuesto)
+  )
 
   // rId → ruta de la hoja dentro del ZIP
   const rels = new Map<string, string>()
-  const relsXml = await textoDe(buf, zip.get('xl/_rels/workbook.xml.rels'))
+  const relsXml = await textoDe(buf, zip.get('xl/_rels/workbook.xml.rels'), presupuesto)
   if (relsXml) {
     for (const rel of etiquetas(parsearXML(relsXml), 'Relationship')) {
       const destino = rel.getAttribute('Target') ?? ''
@@ -72,12 +77,12 @@ export async function leerXLSX(archivo: File): Promise<HojaExcel[]> {
     if (estado === 'hidden' || estado === 'veryHidden') continue
     const rId = hoja.getAttributeNS(NS_REL, 'id') ?? hoja.getAttribute('r:id') ?? ''
     const ruta = rels.get(rId)
-    const xml = ruta ? await textoDe(buf, zip.get(ruta)) : null
+    const xml = ruta ? await textoDe(buf, zip.get(ruta), presupuesto) : null
     if (!xml) continue
     hojas.push({
       nombre: hoja.getAttribute('name') ?? `Hoja ${hojas.length + 1}`,
       filas: leerHoja(xml, textos),
-      imagenes: await leerImagenes(buf, zip, ruta!),
+      imagenes: await leerImagenes(buf, zip, ruta!, presupuesto),
     })
   }
 
@@ -91,6 +96,20 @@ interface EntradaZip {
   metodo: number
   offset: number // posición del encabezado local
   comprimido: number
+  sinComprimir: number
+}
+
+/**
+ * Topes al descomprimir: un .xlsx armado con mala intención puede pesar
+ * poquito y descomprimir gigas ("zip bomb") hasta colgar la pestaña. Los
+ * archivos reales de listas de precios no llegan ni cerca de estos valores.
+ */
+const MAX_PARTE = 64 * 1024 * 1024 // 64 MB por parte
+const MAX_TOTAL = 256 * 1024 * 1024 // 256 MB por archivo
+
+/** Presupuesto de bytes descomprimidos que le queda a un archivo. */
+interface Presupuesto {
+  restante: number
 }
 
 const CENTINELA = 0xffffffff
@@ -135,14 +154,14 @@ function leerDirectorioZip(buf: ArrayBuffer): Map<string, EntradaZip> {
     if (dv.getUint32(p, true) !== 0x02014b50) break
     const metodo = dv.getUint16(p + 10, true)
     let comprimido = dv.getUint32(p + 20, true)
-    const sinComprimir = dv.getUint32(p + 24, true)
+    let sinComprimir = dv.getUint32(p + 24, true)
     const largoNombre = dv.getUint16(p + 28, true)
     const largoExtra = dv.getUint16(p + 30, true)
     const largoComentario = dv.getUint16(p + 32, true)
     let offset = dv.getUint32(p + 42, true)
     const nombre = utf8.decode(bytes.subarray(p + 46, p + 46 + largoNombre))
 
-    if (comprimido === CENTINELA || offset === CENTINELA) {
+    if (comprimido === CENTINELA || offset === CENTINELA || sinComprimir === CENTINELA) {
       // Campo extra ZIP64 (id 0x0001): trae los valores de 64 bits, en orden
       // fijo y solo para los campos que quedaron con centinela.
       let e = p + 46 + largoNombre
@@ -152,7 +171,10 @@ function leerDirectorioZip(buf: ArrayBuffer): Map<string, EntradaZip> {
         const tam = dv.getUint16(e + 2, true)
         if (id === 0x0001) {
           let q = e + 4
-          if (sinComprimir === CENTINELA) q += 8
+          if (sinComprimir === CENTINELA) {
+            sinComprimir = Number(dv.getBigUint64(q, true))
+            q += 8
+          }
           if (comprimido === CENTINELA) {
             comprimido = Number(dv.getBigUint64(q, true))
             q += 8
@@ -164,7 +186,7 @@ function leerDirectorioZip(buf: ArrayBuffer): Map<string, EntradaZip> {
       }
     }
 
-    entradas.set(nombre, { metodo, offset, comprimido })
+    entradas.set(nombre, { metodo, offset, comprimido, sinComprimir })
     p += 46 + largoNombre + largoExtra + largoComentario
   }
 
@@ -172,8 +194,50 @@ function leerDirectorioZip(buf: ArrayBuffer): Map<string, EntradaZip> {
   return entradas
 }
 
-async function bytesDe(buf: ArrayBuffer, entrada: EntradaZip | undefined): Promise<Uint8Array | null> {
+/** Descomprime cortando en seco si pasa el tope, sin esperar a terminar. */
+async function inflarConTope(datos: Uint8Array<ArrayBuffer>, tope: number): Promise<Uint8Array> {
+  const flujo = new Blob([datos]).stream().pipeThrough(new DecompressionStream('deflate-raw'))
+  const lector = flujo.getReader()
+  const partes: Uint8Array[] = []
+  let total = 0
+
+  for (;;) {
+    const { done, value } = await lector.read()
+    if (done) break
+    total += value.length
+    if (total > tope) {
+      await lector.cancel()
+      throw new Error('El archivo descomprime a un tamaño desmedido y se frenó por seguridad.')
+    }
+    partes.push(value)
+  }
+
+  const salida = new Uint8Array(total)
+  let pos = 0
+  for (const parte of partes) {
+    salida.set(parte, pos)
+    pos += parte.length
+  }
+  return salida
+}
+
+async function bytesDe(
+  buf: ArrayBuffer,
+  entrada: EntradaZip | undefined,
+  presupuesto?: Presupuesto
+): Promise<Uint8Array | null> {
   if (!entrada) return null
+
+  // Chequeo barato con el tamaño que declara el ZIP, antes de descomprimir
+  if (entrada.sinComprimir > MAX_PARTE) {
+    throw new Error('El archivo tiene una parte demasiado grande para abrirla en el navegador.')
+  }
+  if (presupuesto) {
+    presupuesto.restante -= entrada.sinComprimir
+    if (presupuesto.restante < 0) {
+      throw new Error('El archivo es demasiado grande para abrirlo en el navegador.')
+    }
+  }
   const dv = new DataView(buf)
   if (entrada.offset + 30 > buf.byteLength || dv.getUint32(entrada.offset, true) !== 0x04034b50) {
     throw new Error('ZIP inválido')
@@ -187,12 +251,16 @@ async function bytesDe(buf: ArrayBuffer, entrada: EntradaZip | undefined): Promi
   if (entrada.metodo === 0) return datos // sin comprimir
   if (entrada.metodo !== 8) throw new Error('El Excel usa una compresión que no se puede leer')
 
-  const flujo = new Blob([datos]).stream().pipeThrough(new DecompressionStream('deflate-raw'))
-  return new Uint8Array(await new Response(flujo).arrayBuffer())
+  // El tope real: el encabezado del ZIP puede mentir sobre el tamaño
+  return await inflarConTope(datos, Math.min(MAX_PARTE, presupuesto?.restante ?? MAX_PARTE) + 1)
 }
 
-async function textoDe(buf: ArrayBuffer, entrada: EntradaZip | undefined): Promise<string | null> {
-  const bytes = await bytesDe(buf, entrada)
+async function textoDe(
+  buf: ArrayBuffer,
+  entrada: EntradaZip | undefined,
+  presupuesto?: Presupuesto
+): Promise<string | null> {
+  const bytes = await bytesDe(buf, entrada, presupuesto)
   return bytes === null ? null : new TextDecoder().decode(bytes)
 }
 
@@ -234,10 +302,15 @@ function aBase64(bytes: Uint8Array): string {
 async function leerImagenes(
   buf: ArrayBuffer,
   zip: Map<string, EntradaZip>,
-  rutaHoja: string
+  rutaHoja: string,
+  presupuesto: Presupuesto
 ): Promise<ImagenExcel[]> {
   try {
-    const relsHoja = await textoDe(buf, zip.get(rutaHoja.replace(/([^/]+)$/, '_rels/$1.rels')))
+    const relsHoja = await textoDe(
+      buf,
+      zip.get(rutaHoja.replace(/([^/]+)$/, '_rels/$1.rels')),
+      presupuesto
+    )
     if (!relsHoja) return []
 
     const carpetaHoja = rutaHoja.replace(/\/[^/]+$/, '')
@@ -249,13 +322,17 @@ async function leerImagenes(
     }
     if (!rutaDibujo) return []
 
-    const dibujoXml = await textoDe(buf, zip.get(rutaDibujo))
+    const dibujoXml = await textoDe(buf, zip.get(rutaDibujo), presupuesto)
     if (!dibujoXml) return []
 
     // rId → archivo de imagen
     const carpetaDibujo = rutaDibujo.replace(/\/[^/]+$/, '')
     const archivos = new Map<string, string>()
-    const relsDibujo = await textoDe(buf, zip.get(rutaDibujo.replace(/([^/]+)$/, '_rels/$1.rels')))
+    const relsDibujo = await textoDe(
+      buf,
+      zip.get(rutaDibujo.replace(/([^/]+)$/, '_rels/$1.rels')),
+      presupuesto
+    )
     if (relsDibujo) {
       for (const rel of etiquetas(parsearXML(relsDibujo), 'Relationship')) {
         archivos.set(
@@ -291,7 +368,7 @@ async function leerImagenes(
 
       let dataUrl = cache.get(archivo)
       if (!dataUrl) {
-        const bytes = await bytesDe(buf, zip.get(archivo))
+        const bytes = await bytesDe(buf, zip.get(archivo), presupuesto)
         if (!bytes) continue
         dataUrl = `data:${tipo};base64,${aBase64(bytes)}`
         cache.set(archivo, dataUrl)

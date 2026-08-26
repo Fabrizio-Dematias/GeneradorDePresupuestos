@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { filtroTexto } from '../lib/consultas'
 import { formatARS, formatearCUIT, hoyISO, proximoNumeroRemito, nombreArchivoRemito } from '../lib/format'
 import { Badge, Button, Card, Input, LoadingState, PageHeader, StockPill } from '../components/ui'
 import { IconEye, IconPlus, IconSearch, IconTrash, IconUsers } from '../components/icons'
@@ -230,7 +231,7 @@ export default function NuevoRemito() {
   // La búsqueda se hace en el servidor (ilike + límite): no hace falta
   // descargar el catálogo completo al abrir la página.
   useEffect(() => {
-    const q = busqueda.trim().replace(/[,()%]/g, ' ').trim()
+    const q = filtroTexto(busqueda)
     if (!q) {
       setSugerencias([])
       return

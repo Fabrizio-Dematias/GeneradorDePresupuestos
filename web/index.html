@@ -14,14 +14,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <script>
-      // Aplica el modo oscuro guardado antes de renderizar (evita el destello claro)
-      try {
-        if (localStorage.getItem('dicor-tema') === 'oscuro') {
-          document.documentElement.classList.add('dark')
-        }
-      } catch (e) {}
-    </script>
+    <script src="/tema.js"></script>
   </head>
   <body>
     <div id="root"></div>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { filtroTexto } from '../lib/consultas'
 import { formatARS, formatFechaHora } from '../lib/format'
 import {
   Badge,
@@ -53,7 +54,7 @@ export default function HistorialPrecios() {
     const from = (pagina - 1) * POR_PAGINA
     let query = supabase.from('historial_precios').select('*', { count: 'exact' })
 
-    const q = busqueda.trim().replace(/[,()%]/g, ' ').trim()
+    const q = filtroTexto(busqueda)
     if (q) query = query.or(`producto_codigo.ilike.%${q}%,producto_descripcion.ilike.%${q}%`)
     if (categoria !== 'TODAS') query = query.eq('categoria', categoria)
 
