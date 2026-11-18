@@ -217,20 +217,7 @@ export default function Remitos() {
     if (!aEliminar) return
     setEliminando(true)
     // La función repone el stock descontado y recién después borra el remito
-    let { error } = await supabase.rpc('eliminar_remito', { p_remito_id: aEliminar.id })
-
-    // Si la función todavía no existe en la base (falta correr
-    // migration_mejoras.sql), se borra como antes, sin reponer stock.
-    if (error && (error.code === 'PGRST202' || /function/i.test(error.message ?? ''))) {
-      const res = await supabase.from('remitos').delete().eq('id', aEliminar.id)
-      error = res.error
-      if (!error) {
-        toast(
-          'info',
-          'Se eliminó sin reponer el stock: falta ejecutar migration_mejoras.sql en Supabase.'
-        )
-      }
-    }
+    const { error } = await supabase.rpc('eliminar_remito', { p_remito_id: aEliminar.id })
     setEliminando(false)
     if (error) {
       toast('error', `No se pudo eliminar el remito: ${error.message}`)

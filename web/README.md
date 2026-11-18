@@ -44,9 +44,13 @@ Funciona desde cualquier dispositivo (PC, tablet, celular) y usa
    values ('<UUID>', 'tuusuario', 'tu@email.com');
    ```
 
+5. **Desactivar el registro público**: en **Authentication → Sign In / Providers**
+   apagá **Allow new users to sign up** y guardá. Así nadie puede crearse una
+   cuenta por su cuenta; los usuarios se agregan solo desde el panel.
+
 Con ese usuario y contraseña vas a entrar a la web. Nadie más puede ver tus
-datos: todas las tablas están protegidas y solo usuarios autenticados pueden
-acceder.
+datos: todas las tablas están protegidas y solo pueden acceder los usuarios que
+figuran en `user_profiles` (los que diste de alta en el paso 4).
 
 ### 4. Publicar la web en Vercel
 
@@ -143,8 +147,8 @@ con un campo al lado para escribir la marca; los bloques cuya marca está escrit
 vienen completados. Así se carga la marca de una vez aunque en el Excel sea una imagen.
 Al importar, **el logo queda guardado** (tabla `marcas`) y se usa después en la lista
 de precios en PDF: cada bloque sale encabezado por el logo, como en la lista impresa.
-Requiere ejecutar una vez `supabase/migration_marcas.sql`; sin eso la lista sale igual,
-con el nombre de la marca en texto.
+La tabla `marcas` ya viene en `supabase/setup-completo.sql`; si una marca no tiene logo,
+la lista sale igual, con el nombre de la marca en texto.
 
 Dos casos que resuelve solo: el mismo código repetido en varias marcas se carga una
 sola vez (si tiene dos precios distintos, lo marca como error para que lo revises),
@@ -166,8 +170,8 @@ y el mes de vigencia.
 - El orden de las hojas se acomoda con las flechas.
 
 Los campos **marca**, **medidas** y **modelo** son opcionales y se cargan desde el
-formulario del producto o desde el importador. Requiere ejecutar una vez
-`supabase/migration_lista_precios.sql` (agrega esas tres columnas; no toca los datos).
+formulario del producto o desde el importador. Las tres columnas ya vienen en
+`supabase/setup-completo.sql`.
 Si las medidas quedaron dentro de la descripción (`LAZO NUEVO 8x9x30`), la misma
 pantalla ofrece separarlas a su columna, con vista previa producto por producto.
 
@@ -208,8 +212,24 @@ Para saltear el aumento en un commit puntual: `SIN_VERSION=1 git commit -m "..."
 - **Búsquedas**: el texto que se escribe en los buscadores pasa siempre por
   `filtroTexto()` (`lib/consultas.ts`), que le saca los caracteres que podrían
   cambiar el significado del filtro que se manda a la base.
-- **Base de datos**: todas las tablas tienen RLS; sin iniciar sesión no se puede
-  leer ni escribir nada, ni siquiera con la clave pública que viaja en el navegador.
+- **Base de datos**: todas las tablas tienen RLS y solo dejan leer o escribir a
+  los usuarios que figuran en `user_profiles` (función `es_usuario_autorizado()`).
+  Sin iniciar sesión no se puede hacer nada, ni siquiera con la clave pública que
+  viaja en el navegador; y una cuenta creada por fuera (registro público) tampoco
+  ve nada, porque no tiene perfil. Nadie puede darse de alta solo en
+  `user_profiles`: los perfiles se cargan desde el SQL Editor. Las funciones de
+  la base solo las puede ejecutar un usuario con sesión, salvo la del login.
+- **Login**: `login_email` verifica la contraseña antes de devolver el email del
+  usuario, así que no sirve para averiguar los emails. Con 5 intentos fallidos en
+  15 minutos el usuario queda bloqueado ese rato (tabla `login_intentos`).
+- **Remitos**: `crear_remito` y `actualizar_remito` validan todo en el servidor
+  (`validar_remito`): cliente y fecha, cantidades enteras mayores a 0, precios no
+  negativos, bonificación entre 0 y 100 y que los códigos existan. Los subtotales
+  y el total los calcula el servidor: lo que mande el navegador no se usa.
+  Al editar, los ítems que no cambiaron conservan su subtotal original y el total
+  solo se mueve por la diferencia de lo que se agregó o quitó: editar un remito
+  viejo (calculado con otro redondeo) no cambia sus importes ni la facturación.
+  Eliminar un remito pasa siempre por `eliminar_remito`, que repone el stock.
 - **Importación**: el lector de Excel corta la lectura si el archivo descomprime a
   un tamaño desmedido, para que un archivo armado con mala intención no cuelgue la
   pestaña.

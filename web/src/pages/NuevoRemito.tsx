@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { filtroTexto } from '../lib/consultas'
-import { formatARS, formatearCUIT, hoyISO, proximoNumeroRemito, nombreArchivoRemito } from '../lib/format'
+import { formatARS, formatearCUIT, hoyISO } from '../lib/format'
 import { Badge, Button, Card, Input, LoadingState, PageHeader, StockPill } from '../components/ui'
 import { IconEye, IconPlus, IconSearch, IconTrash, IconUsers } from '../components/icons'
 import { useToast } from '../components/Toast'
@@ -95,6 +95,10 @@ export default function NuevoRemito() {
   const [bonificacion, setBonificacion] = useState('0')
 
   const [items, setItems] = useState<ItemBorrador[]>([])
+  // Al editar: diferencia entre el total guardado y la suma de sus ítems
+  // (remitos viejos calculados con otro redondeo). Se mantiene igual que en
+  // el servidor para que editar no cambie el importe de lo que no se tocó.
+  const [ajusteTotal, setAjusteTotal] = useState(0)
   const [guardando, setGuardando] = useState(false)
 
   const busquedaRef = useRef<HTMLInputElement>(null)
@@ -143,6 +147,7 @@ export default function NuevoRemito() {
     setCondicionVenta(CONDICIONES_VENTA[0])
     setGuardarCliente(true)
     setItems([])
+    setAjusteTotal(0)
     setBusqueda('')
     setCodigo('')
     setDescripcion('')
@@ -154,15 +159,9 @@ export default function NuevoRemito() {
 
   async function cargarNumero() {
     // El número definitivo lo asigna el servidor al guardar; esto es solo
-    // una vista previa. Si la función todavía no existe en la base, se
-    // calcula como antes leyendo los números existentes.
+    // una vista previa.
     const { data, error } = await supabase.rpc('proximo_numero_remito')
-    if (!error && typeof data === 'string') {
-      setNumero(data)
-      return
-    }
-    const res = await supabase.from('remitos').select('numero')
-    if (!res.error) setNumero(proximoNumeroRemito((res.data ?? []).map((r) => r.numero)))
+    if (!error && typeof data === 'string') setNumero(data)
   }
 
   async function cargarRemitoExistente(id: number) {
@@ -191,8 +190,9 @@ export default function NuevoRemito() {
     setCondicionIVA(r.condicion_iva ?? CONDICIONES_IVA[0])
     setCondicionVenta(r.condicion_venta ?? CONDICIONES_VENTA[0])
     setGuardarCliente(false)
+    const itemsGuardados = (itemsRes.data as RemitoItem[]) ?? []
     setItems(
-      ((itemsRes.data as RemitoItem[]) ?? []).map((it) => ({
+      itemsGuardados.map((it) => ({
         codigo: it.codigo ?? '',
         cantidad: it.cantidad,
         descripcion: it.descripcion,
@@ -201,6 +201,7 @@ export default function NuevoRemito() {
         subtotal: it.subtotal,
       }))
     )
+    setAjusteTotal(r.total - itemsGuardados.reduce((acc, it) => acc + it.subtotal, 0))
     setCargandoRemito(false)
   }
 
@@ -349,7 +350,7 @@ export default function NuevoRemito() {
     busquedaRef.current?.focus()
   }
 
-  const total = items.reduce((acc, item) => acc + item.subtotal, 0)
+  const total = items.reduce((acc, item) => acc + item.subtotal, 0) + ajusteTotal
 
   const [generandoPreview, setGenerandoPreview] = useState(false)
 
@@ -415,9 +416,9 @@ export default function NuevoRemito() {
       }
 
       let nro = numero
-      const payload = () => ({
+      // El número, el nombre del PDF y el total los calcula el servidor
+      const payload = {
         p_remito: {
-          numero: nro, // solo lo usa la función vieja; la nueva numera en el servidor
           fecha,
           cliente_id: idCliente,
           cliente_nombre: clienteNombre.trim(),
@@ -426,40 +427,28 @@ export default function NuevoRemito() {
           condicion_iva: condicionIVA,
           condicion_venta: condicionVenta,
           total,
-          ruta_pdf: nombreArchivoRemito(clienteNombre.trim(), nro),
         },
         p_items: items,
-      })
-
-      let data: any
-      let error: any
-      if (modoEdicion) {
-        const res = await supabase.rpc('actualizar_remito', {
-          p_remito_id: remitoId,
-          ...payload(),
-        })
-        data = res.data
-        error = res.error
-      } else {
-        const res = await supabase.rpc('crear_remito', payload())
-        data = res.data
-        error = res.error
-
-        // Compatibilidad con la función vieja (numeración en el cliente):
-        // si el número ya existe, recalcula y reintenta una vez.
-        if (error && error.code === '23505') {
-          const { data: nums } = await supabase.from('remitos').select('numero')
-          nro = proximoNumeroRemito((nums ?? []).map((r) => r.numero))
-          const retry = await supabase.rpc('crear_remito', payload())
-          data = retry.data
-          error = retry.error
-        }
       }
+
+      const { data, error } = modoEdicion
+        ? await supabase.rpc('actualizar_remito', { p_remito_id: remitoId, ...payload })
+        : await supabase.rpc('crear_remito', payload)
       if (error) throw error
 
-      // La función nueva devuelve {id, numero} con el número definitivo
-      if (data && typeof data === 'object' && typeof data.numero === 'string') {
-        nro = data.numero
+      // La función devuelve {id, numero, total, items} con el número y los
+      // importes definitivos: el PDF sale con lo que quedó guardado
+      let itemsPDF: ItemBorrador[] = items
+      let totalPDF = total
+      if (data && typeof data === 'object') {
+        if (typeof data.numero === 'string') nro = data.numero
+        if (typeof data.total === 'number') totalPDF = data.total
+        if (Array.isArray(data.items)) {
+          itemsPDF = data.items.map((it: ItemBorrador & { codigo: string | null }) => ({
+            ...it,
+            codigo: it.codigo ?? '',
+          }))
+        }
       }
 
       try {
@@ -473,8 +462,8 @@ export default function NuevoRemito() {
           clienteCuit: clienteCuit.trim(),
           condicionIVA,
           condicionVenta,
-          items,
-          total,
+          items: itemsPDF,
+          total: totalPDF,
         })
         toast(
           'success',

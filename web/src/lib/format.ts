@@ -65,19 +65,6 @@ export function formatearCUIT(cuit: string): string {
   return cuit
 }
 
-/**
- * Calcula el próximo número de remito con el mismo formato que el
- * escritorio: '0001-001', '0001-002'... Usa el mayor sufijo existente.
- */
-export function proximoNumeroRemito(numeros: string[]): string {
-  let max = 0
-  for (const n of numeros) {
-    const sufijo = parseInt(n.split('-')[1] ?? '', 10)
-    if (!isNaN(sufijo) && sufijo > max) max = sufijo
-  }
-  return `0001-${String(max + 1).padStart(3, '0')}`
-}
-
 /** Igual que el escritorio: remito_{Cliente}_{numero}.pdf */
 export function nombreArchivoRemito(cliente: string, numero: string): string {
   const limpio = cliente.replace(/[^a-zA-Z0-9]/g, '_')

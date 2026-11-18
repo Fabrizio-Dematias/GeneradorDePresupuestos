@@ -44,12 +44,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   async function signIn(usernameInput: string, password: string): Promise<string | null> {
-    // El lookup username → email pasa por una función security definer:
-    // la tabla user_profiles ya no es legible con la anon key.
+    // El lookup username → email pasa por una función security definer
+    // (user_profiles no es legible con la anon key). Solo devuelve el email
+    // si la contraseña es correcta, y bloquea tras varios intentos fallidos.
     const { data: email, error: lookupError } = await supabase.rpc('login_email', {
       p_username: usernameInput,
+      p_password: password,
     })
 
+    if (lookupError?.message?.includes('Demasiados intentos')) {
+      return lookupError.message
+    }
     if (lookupError || !email) {
       return 'Usuario o contraseña incorrectos.'
     }
