@@ -8,24 +8,26 @@ import { COMMIT, VERSION } from './version'
  * gratuito de Supabase no tiene restauración a un punto en el tiempo).
  */
 
+// Cada tabla con su clave única: se ordena por ella para que la lectura en
+// tandas no saltee ni repita filas (marcas no tiene id, su clave es el nombre).
 const TABLAS = [
-  'clientes',
-  'productos',
-  'marcas',
-  'remitos',
-  'remito_items',
-  'historial_precios',
-  'movimientos_stock',
+  ['clientes', 'id'],
+  ['productos', 'id'],
+  ['marcas', 'nombre'],
+  ['remitos', 'id'],
+  ['remito_items', 'id'],
+  ['historial_precios', 'id'],
+  ['movimientos_stock', 'id'],
 ] as const
 
 export async function descargarBackup(): Promise<number> {
   const tablas: Record<string, unknown[]> = {}
   let totalFilas = 0
 
-  for (const tabla of TABLAS) {
+  for (const [tabla, clave] of TABLAS) {
     let filas: unknown[]
     try {
-      filas = await traerTodas<unknown>(tabla, '*', 'id')
+      filas = await traerTodas<unknown>(tabla, '*', clave)
     } catch (e: any) {
       throw new Error(`${tabla}: ${e?.message ?? 'error al leer la tabla'}`)
     }
