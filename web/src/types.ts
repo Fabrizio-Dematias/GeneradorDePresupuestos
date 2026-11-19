@@ -85,6 +85,33 @@ export interface ProductoProveedor {
   fecha_actualizacion: string | null
 }
 
+/** Pedido guardado a un proveedor (con copia de cómo estaba todo al pedirlo). */
+export interface Pedido {
+  id: number
+  proveedor_id: number
+  proveedor_nombre: string
+  fecha: string
+  nota: string | null
+  descuento: number
+  cargo_nombre: string | null
+  cargo_unitario: number
+  total_estimado: number | null
+  fecha_creacion: string
+  pedido_items: PedidoItem[]
+}
+
+export interface PedidoItem {
+  id: number
+  pedido_id: number
+  producto_id: number | null
+  codigo_dicor: string
+  codigo_proveedor: string
+  descripcion: string | null
+  cantidad: number
+  nota: string | null
+  precio_lista: number | null
+}
+
 /** Situación de cobro de un remito (control interno, no sale en el PDF). */
 export type EstadoCobro = 'pendiente' | 'parcial' | 'cobrado' | 'anulado'
 

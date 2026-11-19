@@ -133,7 +133,17 @@ function remitosConCobro() {
   })
 }
 
-const DB: Record<string, any[]> = { productos, marcas, remitos, remito_items, historial_precios, movimientos_stock, clientes, user_profiles, pagos, proveedores, producto_proveedor }
+// Un pedido guardado de ejemplo
+const pedidos: any[] = [
+  { id: 1, proveedor_id: 1, proveedor_nombre: 'TOSQUI', fecha: '2026-10-08', nota: 'Pedido por WhatsApp', descuento: 25, cargo_nombre: 'Emblistado', cargo_unitario: 60.6, total_estimado: 43770, fecha_creacion: '2026-10-08T18:00:00' },
+]
+const pedido_items: any[] = [
+  { id: 1, pedido_id: 1, producto_id: 541, codigo_dicor: '401', codigo_proveedor: '74', descripcion: 'TAL modo P8020 /P5411 - Sierra Circular modo Ks81 O 6x8x16', cantidad: 20, nota: null, precio_lista: 871.3 },
+  { id: 2, pedido_id: 1, producto_id: 700, codigo_dicor: '699', codigo_proveedor: '74', descripcion: 'CARBONES BOSCH GSB 13 RE', cantidad: 30, nota: null, precio_lista: 871.3 },
+  { id: 3, pedido_id: 1, producto_id: 542, codigo_dicor: '402', codigo_proveedor: '1210A', descripcion: 'AM. 41/2" SEG 500-TAL 10 mm.Mod.BDI52/154 6,3x6,3x15', cantidad: 10, nota: 'C/ CORTE', precio_lista: 954.3 },
+]
+
+const DB: Record<string, any[]> = { productos, marcas, remitos, remito_items, historial_precios, movimientos_stock, clientes, user_profiles, pagos, proveedores, producto_proveedor, pedidos }
 
 // Tablas cuyas altas, cambios y bajas sí se guardan en memoria (para probar la pantalla)
 const PERSISTENTES = new Set(['proveedores', 'producto_proveedor'])
@@ -141,6 +151,9 @@ const PERSISTENTES = new Set(['proveedores', 'producto_proveedor'])
 /** Filas de una tabla; las vistas y los embebidos se calculan al momento. */
 function filasDe(table: string): any[] {
   if (table === 'remitos_con_cobro') return remitosConCobro()
+  if (table === 'pedidos') {
+    return pedidos.map((p) => ({ ...p, pedido_items: pedido_items.filter((i) => i.pedido_id === p.id) }))
+  }
   if (table === 'pago_imputaciones') {
     return pago_imputaciones.map((i) => ({ ...i, pagos: pagos.find((p) => p.id === i.pago_id) }))
   }
@@ -376,6 +389,28 @@ function ejecutarRPC(nombre: string, args: any = {}) {
         }
         return { id, importe }
       })
+    case 'guardar_pedido': {
+      const prov = proveedores.find((p) => p.id === args.p_proveedor_id)
+      const id = Math.max(0, ...pedidos.map((p) => p.id)) + 1
+      let lista = 0
+      let unidades = 0
+      const items = (args.p_items ?? []).map((it: any) => {
+        const prod = productos.find((p) => p.id === it.producto_id)
+        const vinc = producto_proveedor.find((v) => v.producto_id === it.producto_id && v.proveedor_id === args.p_proveedor_id)
+        unidades += it.cantidad
+        lista += it.cantidad * (vinc?.precio_lista ?? 0)
+        return { id: pedido_items.length + 1 + Math.random(), pedido_id: id, producto_id: it.producto_id, codigo_dicor: prod?.codigo ?? '', codigo_proveedor: vinc?.codigo_proveedor ?? '', descripcion: prod?.descripcion ?? null, cantidad: it.cantidad, nota: it.nota ?? null, precio_lista: vinc?.precio_lista ?? null }
+      })
+      const total = redondear(lista * (1 - prov.descuento / 100) + unidades * prov.cargo_unitario)
+      pedidos.push({ id, proveedor_id: prov.id, proveedor_nombre: prov.nombre, fecha: args.p_fecha, nota: args.p_nota ?? null, descuento: prov.descuento, cargo_nombre: prov.cargo_nombre, cargo_unitario: prov.cargo_unitario, total_estimado: total, fecha_creacion: new Date().toISOString() })
+      pedido_items.push(...items)
+      return { id, total_estimado: total, unidades }
+    }
+    case 'eliminar_pedido': {
+      const i = pedidos.findIndex((p) => p.id === args.p_pedido_id)
+      if (i >= 0) pedidos.splice(i, 1)
+      return null
+    }
     case 'anular_pago': {
       const pago = pagos.find((p) => p.id === args.p_pago_id)
       if (pago) Object.assign(pago, { anulado: true, motivo_anulacion: args.p_motivo, fecha_anulacion: new Date().toISOString() })

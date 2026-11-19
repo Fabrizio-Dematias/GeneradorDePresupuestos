@@ -154,12 +154,21 @@ los carbones). El costo de cada unidad se calcula igual que en su factura:
   y el **margen** sobre el costo; con *Margen con bonificación* se ve cuánto queda si
   al cliente le hacés descuento. El margen solo se ve en esta pantalla.
 - **Pedido**: los productos de ese proveedor con tu código, el suyo y el stock. Se
-  elige cuánto pedir (*Completar hasta el mínimo* lo sugiere) y se descarga un
-  **Excel** `PEDIDO <PROVEEDOR> dd-mm-aaaa.xlsx` con solo **código del proveedor y
-  cantidad** (y la nota, si hay), editable. Si dos productos tuyos comparten el código
-  del proveedor, van sumados en una línea. Muestra el costo estimado armado igual que
+  elige cuánto pedir (*Completar hasta el mínimo* lo sugiere) y al costado se ve la
+  **vista previa** del pedido tal como va a salir: cada código del proveedor con su
+  cantidad y qué códigos DICOR lo forman. Muestra el costo estimado armado igual que
   la factura (lista − descuento + cargo × unidades). El pedido en curso queda guardado
-  en el navegador hasta que se vacía.
+  en el navegador hasta que se guarda o se vacía.
+- **Guardar y descargar Excel** registra el pedido en el **historial** y descarga
+  `PEDIDO <PROVEEDOR> dd-mm-aaaa.xlsx` con solo **código del proveedor y cantidad** (y
+  la nota, si hay), editable. Si dos productos tuyos comparten el código del proveedor,
+  van sumados en una línea. *Solo descargar* baja el Excel sin registrarlo.
+- **Historial**: los pedidos guardados de cada proveedor, con código del proveedor,
+  **código DICOR**, producto, cantidad y nota de cada línea. Se busca por código (para
+  ver cuándo y cuánto se pidió) y se puede volver a bajar el Excel de cualquier pedido.
+  Cada pedido guarda una copia de cómo estaba todo al pedirlo: si después cambia un
+  código o un precio, el historial no cambia. Un proveedor con pedidos guardados no se
+  puede eliminar.
 
 ### Importar una lista de precios
 

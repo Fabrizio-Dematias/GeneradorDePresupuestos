@@ -78,7 +78,13 @@ export default function ProveedorModal({
     const { error } = await supabase.from('proveedores').delete().eq('id', proveedor.id)
     setBorrando(false)
     if (error) {
-      toast('error', `No se pudo eliminar el proveedor: ${error.message}`)
+      toast(
+        'error',
+        error.code === '23503'
+          ? `${proveedor.nombre} tiene pedidos guardados en el historial, así que no se puede eliminar (el historial se conserva).`
+          : `No se pudo eliminar el proveedor: ${error.message}`
+      )
+      setConfirmarBorrado(false)
       return
     }
     toast('success', `Proveedor ${proveedor.nombre} eliminado.`)
@@ -175,7 +181,8 @@ export default function ProveedorModal({
         message={
           <p>
             ¿Eliminar a <strong>{proveedor?.nombre}</strong>? Se borran los códigos y precios de compra que cargaste
-            para este proveedor. Tus productos, su stock y sus precios de venta no se tocan.
+            para este proveedor. Tus productos, su stock y sus precios de venta no se tocan. Si tiene pedidos guardados
+            en el historial, no se puede eliminar.
           </p>
         }
         loading={borrando}

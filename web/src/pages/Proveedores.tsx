@@ -8,9 +8,10 @@ import { useToast } from '../components/Toast'
 import ProveedorModal from '../components/ProveedorModal'
 import CodigosProveedor, { type BorradorCodigos } from '../components/CodigosProveedor'
 import PedidoProveedor from '../components/PedidoProveedor'
+import HistorialPedidos from '../components/HistorialPedidos'
 import type { Producto, ProductoProveedor, Proveedor } from '../types'
 
-type Pestania = 'pedido' | 'codigos'
+type Pestania = 'pedido' | 'historial' | 'codigos'
 
 const CLAVE_SELECCION = 'dicor-proveedor'
 
@@ -33,6 +34,7 @@ export default function Proveedores() {
   // Lo escrito en la grilla de códigos, por proveedor: no se pierde al cambiar de pestaña
   const [borradores, setBorradores] = useState<Record<number, BorradorCodigos>>({})
   const [editando, setEditando] = useState<Proveedor | 'nuevo' | null>(null)
+  const [cantidadPedidos, setCantidadPedidos] = useState<number | null>(null)
 
   async function cargarProveedores() {
     const { data, error } = await supabase.from('proveedores').select('*').order('nombre')
@@ -72,8 +74,17 @@ export default function Proveedores() {
     }
   }
 
+  async function contarPedidos(proveedorId: number) {
+    const { count } = await supabase
+      .from('pedidos')
+      .select('id', { count: 'exact', head: true })
+      .eq('proveedor_id', proveedorId)
+    setCantidadPedidos(count ?? 0)
+  }
+
   useEffect(() => {
     if (!seleccionado) return
+    contarPedidos(seleccionado.id)
     try {
       localStorage.setItem(CLAVE_SELECCION, String(seleccionado.id))
     } catch {
@@ -194,6 +205,14 @@ export default function Proveedores() {
                 options={[
                   { value: 'pedido', label: 'Pedido' },
                   {
+                    value: 'historial',
+                    label: (
+                      <span className="whitespace-nowrap">
+                        Historial{cantidadPedidos ? ` · ${cantidadPedidos}` : ''}
+                      </span>
+                    ),
+                  },
+                  {
                     value: 'codigos',
                     label: (
                       <span className="whitespace-nowrap">
@@ -213,6 +232,13 @@ export default function Proveedores() {
                 proveedor={seleccionado}
                 productos={productos}
                 vinculos={vinculos}
+                onGuardado={() => contarPedidos(seleccionado.id)}
+              />
+            ) : pestania === 'historial' ? (
+              <HistorialPedidos
+                key={seleccionado.id}
+                proveedor={seleccionado}
+                onCambio={() => contarPedidos(seleccionado.id)}
               />
             ) : (
               <CodigosProveedor

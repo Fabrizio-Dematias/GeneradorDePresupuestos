@@ -22,6 +22,8 @@ const TABLAS = [
   ['pago_imputaciones', 'id'],
   ['proveedores', 'id'],
   ['producto_proveedor', 'id'],
+  ['pedidos', 'id'],
+  ['pedido_items', 'id'],
 ] as const
 
 export async function descargarBackup(): Promise<number> {
