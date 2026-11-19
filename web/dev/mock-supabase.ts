@@ -84,7 +84,51 @@ const user_profiles = [
   { id: 'u1', username: 'fabrizio', email: 'dicorcarbones@gmail.com' },
 ]
 
-const DB: Record<string, any[]> = { productos, marcas, remitos, remito_items, historial_precios, movimientos_stock, clientes, user_profiles }
+// Cobros de ejemplo: uno parcial, uno completo, uno anulado
+const pagos: any[] = [
+  { id: 1, fecha: '2026-06-20', importe: 100000, medio: 'Transferencia', referencia: 'TRF 4471', nota: null, anulado: false, motivo_anulacion: null, fecha_anulacion: null },
+  { id: 2, fecha: '2026-05-15', importe: 2513843.97, medio: 'Efectivo', referencia: null, nota: null, anulado: false, motivo_anulacion: null, fecha_anulacion: null },
+  { id: 3, fecha: '2026-02-12', importe: 911576.26, medio: 'Cheque', referencia: 'Ch. 00123', nota: 'Al día', anulado: false, motivo_anulacion: null, fecha_anulacion: null },
+  { id: 4, fecha: '2026-05-02', importe: 50000, medio: 'Cheque', referencia: 'Ch. 00456', nota: null, anulado: true, motivo_anulacion: 'Cheque rechazado', fecha_anulacion: '2026-05-06T10:00:00' },
+]
+const pago_imputaciones: any[] = [
+  { id: 1, pago_id: 1, remito_id: 23, remito_numero: '0001-008', importe: 100000 },
+  { id: 2, pago_id: 2, remito_id: 22, remito_numero: '0001-007', importe: 2513843.97 },
+  { id: 3, pago_id: 3, remito_id: 7, remito_numero: '0001-003', importe: 911576.26 },
+  { id: 4, pago_id: 4, remito_id: 19, remito_numero: '0001-005', importe: 50000 },
+]
+
+const redondear = (n: number) => Math.round(n * 100) / 100
+
+/** Réplica de la vista remitos_con_cobro. */
+function remitosConCobro() {
+  return remitos.map((r) => {
+    const vigentes = pago_imputaciones.filter(
+      (i) => i.remito_id === r.id && !pagos.find((p) => p.id === i.pago_id)?.anulado
+    )
+    const cobrado = redondear(vigentes.reduce((acc, i) => acc + i.importe, 0))
+    const anulado = r.estado === 'Anulado'
+    return {
+      ...r,
+      cliente_id: null,
+      cobrado,
+      saldo: anulado ? 0 : Math.max(redondear(r.total - cobrado), 0),
+      estado_cobro: anulado ? 'anulado' : cobrado >= r.total ? 'cobrado' : cobrado > 0 ? 'parcial' : 'pendiente',
+      ultimo_pago: null,
+    }
+  })
+}
+
+const DB: Record<string, any[]> = { productos, marcas, remitos, remito_items, historial_precios, movimientos_stock, clientes, user_profiles, pagos }
+
+/** Filas de una tabla; las vistas y los embebidos se calculan al momento. */
+function filasDe(table: string): any[] {
+  if (table === 'remitos_con_cobro') return remitosConCobro()
+  if (table === 'pago_imputaciones') {
+    return pago_imputaciones.map((i) => ({ ...i, pagos: pagos.find((p) => p.id === i.pago_id) }))
+  }
+  return DB[table] ?? []
+}
 
 function crearBuilder(table: string) {
   const state = {
@@ -100,7 +144,7 @@ function crearBuilder(table: string) {
     range: undefined as [number, number] | undefined,
   }
   function resolver() {
-    let rows = [...(DB[table] ?? [])]
+    let rows = [...filasDe(table)]
     for (const [c, v] of state.eqs) rows = rows.filter((r) => r[c] === v)
     for (const [c, vs] of state.ins) rows = rows.filter((r) => vs.includes(r[c]))
     for (const [c, v] of state.gtes) rows = rows.filter((r) => r[c] >= v)
@@ -253,6 +297,36 @@ function ejecutarRPC(nombre: string, args: any = {}) {
           facturado: items.reduce((a, i) => a + i.subtotal, 0),
         },
       ]
+    }
+    case 'deudas_por_cliente': {
+      const mapa = new Map<string, any>()
+      for (const r of remitosConCobro()) {
+        if (r.estado_cobro !== 'pendiente' && r.estado_cobro !== 'parcial') continue
+        const clave = (r.cliente_nombre ?? '').trim().toLowerCase()
+        const fila = mapa.get(clave) ?? { cliente_id: null, cliente_nombre: r.cliente_nombre, remitos: 0, saldo: 0, desde: r.fecha }
+        fila.remitos += 1
+        fila.saldo = redondear(fila.saldo + r.saldo)
+        if (r.fecha < fila.desde) fila.desde = r.fecha
+        mapa.set(clave, fila)
+      }
+      return Array.from(mapa.values()).sort((a, b) => b.saldo - a.saldo)
+    }
+    // Los cobros sí persisten en memoria, para poder probar la pantalla
+    case 'registrar_pagos':
+      return (args.p_pagos ?? []).map((p: any) => {
+        const id = pagos.length + 1
+        const importe = redondear(p.imputaciones.reduce((acc: number, i: any) => acc + i.importe, 0))
+        pagos.push({ id, fecha: p.fecha, importe, medio: p.medio, referencia: p.referencia || null, nota: p.nota || null, anulado: false, motivo_anulacion: null, fecha_anulacion: null })
+        for (const i of p.imputaciones) {
+          const r = remitos.find((x) => x.id === i.remito_id)
+          pago_imputaciones.push({ id: pago_imputaciones.length + 1, pago_id: id, remito_id: i.remito_id, remito_numero: r?.numero ?? '', importe: i.importe })
+        }
+        return { id, importe }
+      })
+    case 'anular_pago': {
+      const pago = pagos.find((p) => p.id === args.p_pago_id)
+      if (pago) Object.assign(pago, { anulado: true, motivo_anulacion: args.p_motivo, fecha_anulacion: new Date().toISOString() })
+      return null
     }
     // Mutaciones: no persisten nada en el mock
     case 'crear_remito':

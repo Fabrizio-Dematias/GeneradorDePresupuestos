@@ -18,6 +18,8 @@ const TABLAS = [
   ['remito_items', 'id'],
   ['historial_precios', 'id'],
   ['movimientos_stock', 'id'],
+  ['pagos', 'id'],
+  ['pago_imputaciones', 'id'],
 ] as const
 
 export async function descargarBackup(): Promise<number> {

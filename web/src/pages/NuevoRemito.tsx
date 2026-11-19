@@ -3,52 +3,28 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { filtroTexto } from '../lib/consultas'
 import { formatARS, formatearCUIT, hoyISO } from '../lib/format'
-import { Badge, Button, Card, Input, LoadingState, PageHeader, StockPill } from '../components/ui'
+import { Badge, Button, Card, ChipGroup, Input, LoadingState, PageHeader, StockPill } from '../components/ui'
 import { IconEye, IconPlus, IconSearch, IconTrash, IconUsers } from '../components/icons'
 import { useToast } from '../components/Toast'
 import {
   CONDICIONES_IVA,
   CONDICIONES_VENTA,
+  MEDIOS_PAGO,
   type Cliente,
   type ItemBorrador,
   type Producto,
   type RemitoItem,
 } from '../types'
 
+// Cobro al guardar (control interno: no sale en el remito). Arranca siempre
+// "por cobrar": marcar cobrado tiene que ser una decisión, para que una entrega
+// sin pagar no quede registrada como cobrada por descuido.
+const OPCIONES_COBRO = ['Queda por cobrar', 'Cobrado en el momento'] as const
+
 function calcularSubtotal(cantidad: number, precio: number, bonif: number): number {
   // Misma fórmula que la app de escritorio, redondeada a 2 decimales
   // (la base guarda los importes como numeric(12,2))
   return Math.round(cantidad * precio * (1 - bonif / 100) * 100) / 100
-}
-
-/** Grupo de opciones tipo "chips" (reemplaza los radio buttons del escritorio) */
-function ChipGroup({
-  opciones,
-  valor,
-  onChange,
-}: {
-  opciones: readonly string[]
-  valor: string
-  onChange: (v: string) => void
-}) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {opciones.map((op) => (
-        <button
-          key={op}
-          type="button"
-          onClick={() => onChange(op)}
-          className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition ${
-            valor === op
-              ? 'border-brand-700 bg-brand-700 text-white shadow-sm'
-              : 'border-slate-300 bg-white text-slate-600 hover:border-brand-600 hover:text-brand-700'
-          }`}
-        >
-          {op}
-        </button>
-      ))}
-    </div>
-  )
 }
 
 export default function NuevoRemito() {
@@ -99,6 +75,8 @@ export default function NuevoRemito() {
   // (remitos viejos calculados con otro redondeo). Se mantiene igual que en
   // el servidor para que editar no cambie el importe de lo que no se tocó.
   const [ajusteTotal, setAjusteTotal] = useState(0)
+  const [cobro, setCobro] = useState<string>(OPCIONES_COBRO[0])
+  const [medioCobro, setMedioCobro] = useState<string>(MEDIOS_PAGO[0])
   const [guardando, setGuardando] = useState(false)
 
   const busquedaRef = useRef<HTMLInputElement>(null)
@@ -148,6 +126,7 @@ export default function NuevoRemito() {
     setGuardarCliente(true)
     setItems([])
     setAjusteTotal(0)
+    setCobro(OPCIONES_COBRO[0])
     setBusqueda('')
     setCodigo('')
     setDescripcion('')
@@ -451,6 +430,27 @@ export default function NuevoRemito() {
         }
       }
 
+      // Cobro en el momento: se registra el pago por el total guardado. Si
+      // fallara, el remito ya está guardado y queda "por cobrar" (lo seguro).
+      let cobrado = false
+      if (!modoEdicion && cobro === 'Cobrado en el momento' && typeof data?.id === 'number') {
+        const hoy = hoyISO()
+        const { error: errorCobro } = await supabase.rpc('registrar_pagos', {
+          p_pagos: [
+            {
+              fecha: fecha <= hoy ? fecha : hoy,
+              medio: medioCobro,
+              imputaciones: [{ remito_id: data.id, importe: totalPDF }],
+            },
+          ],
+        })
+        if (errorCobro) {
+          toast('error', `El remito se guardó, pero no se pudo registrar el cobro (${errorCobro.message}). Registralo desde Remitos.`)
+        } else {
+          cobrado = true
+        }
+      }
+
       try {
         // Import dinámico: jsPDF solo se descarga cuando se genera un PDF
         const { generarRemitoPDF } = await import('../lib/pdf')
@@ -469,7 +469,7 @@ export default function NuevoRemito() {
           'success',
           modoEdicion
             ? `Remito ${nro} actualizado y PDF descargado.`
-            : `Remito ${nro} guardado y PDF descargado.`
+            : `Remito ${nro} guardado${cobrado ? ' (cobrado)' : ''} y PDF descargado.`
         )
       } catch {
         toast('info', `Remito ${nro} guardado. El PDF se puede descargar desde "Remitos".`)
@@ -489,6 +489,7 @@ export default function NuevoRemito() {
       setCondicionVenta(CONDICIONES_VENTA[0])
       setGuardarCliente(true)
       setItems([])
+      setCobro(OPCIONES_COBRO[0])
       limpiarFormularioItem()
       await cargarNumero()
       supabase
@@ -824,6 +825,21 @@ export default function NuevoRemito() {
                 <span className="text-sm font-medium text-brand-100">TOTAL</span>
                 <span className="text-xl font-bold text-white">{formatARS(total)}</span>
               </div>
+
+              {!modoEdicion && (
+                <div className="mt-4 rounded-lg border border-slate-200 p-3">
+                  <p className="label">
+                    Cobro <span className="font-normal text-slate-400">· control interno, no sale en el remito</span>
+                  </p>
+                  <ChipGroup opciones={OPCIONES_COBRO} valor={cobro} onChange={setCobro} />
+                  {cobro === 'Cobrado en el momento' && (
+                    <div className="mt-3">
+                      <p className="label">Medio de pago</p>
+                      <ChipGroup opciones={MEDIOS_PAGO} valor={medioCobro} onChange={setMedioCobro} />
+                    </div>
+                  )}
+                </div>
+              )}
 
               <Button
                 variant="secondary"

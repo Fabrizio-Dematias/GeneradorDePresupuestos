@@ -324,6 +324,37 @@ export function Segmented<T extends string>({
   )
 }
 
+// ---------------------------------------------------------------- ChipGroup
+/** Grupo de opciones tipo "chips" (reemplaza los radio buttons del escritorio) */
+export function ChipGroup({
+  opciones,
+  valor,
+  onChange,
+}: {
+  opciones: readonly string[]
+  valor: string
+  onChange: (v: string) => void
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {opciones.map((op) => (
+        <button
+          key={op}
+          type="button"
+          onClick={() => onChange(op)}
+          className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition ${
+            valor === op
+              ? 'border-brand-700 bg-brand-700 text-white shadow-sm'
+              : 'border-slate-300 bg-white text-slate-600 hover:border-brand-600 hover:text-brand-700'
+          }`}
+        >
+          {op}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 // ---------------------------------------------------------------- Pagination
 /** Barra de paginación estándar: "N resultados · página X de Y" + Anterior/Siguiente. */
 export function Pagination({

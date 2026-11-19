@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts'
 import { supabase } from '../lib/supabase'
-import { formatARS, formatFecha, MESES } from '../lib/format'
+import { formatARS, formatFecha, haceDias, MESES } from '../lib/format'
 import { descargarBackup } from '../lib/backup'
 import { Badge, Button, Card, EmptyState, LoadingState, PageHeader, StatCard, StockPill } from '../components/ui'
 import {
@@ -36,6 +36,14 @@ interface FilaMensual {
   mes: number
   cantidad: number
   total: number
+}
+
+interface FilaDeuda {
+  cliente_id: number | null
+  cliente_nombre: string | null
+  remitos: number
+  saldo: number
+  desde: string
 }
 
 interface FilaReposicion {
@@ -90,6 +98,7 @@ export default function Dashboard() {
   const [ultimos, setUltimos] = useState<Remito[]>([])
   const [serieMensual, setSerieMensual] = useState<PuntoMensual[]>([])
   const [reposicion, setReposicion] = useState<FilaReposicion[]>([])
+  const [deudas, setDeudas] = useState<FilaDeuda[]>([])
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -97,7 +106,7 @@ export default function Dashboard() {
       try {
         // La facturación viene ya agregada por mes desde el servidor
         // (excluye anulados); no se descargan todos los remitos.
-        const [mensualRes, productosRes, historialRes, ultimosRes, reposicionRes] =
+        const [mensualRes, productosRes, historialRes, ultimosRes, reposicionRes, deudasRes] =
           await Promise.all([
             supabase.rpc('facturacion_mensual'),
             supabase.from('productos').select('id', { count: 'exact', head: true }),
@@ -109,6 +118,7 @@ export default function Dashboard() {
               .order('id', { ascending: false })
               .limit(5),
             supabase.rpc('productos_reposicion'),
+            supabase.rpc('deudas_por_cliente'),
           ])
 
         const errores = [mensualRes.error, productosRes.error, historialRes.error, ultimosRes.error]
@@ -127,6 +137,10 @@ export default function Dashboard() {
         // Reposición: la función puede no existir si falta migration_mejoras2.sql
         if (!reposicionRes.error) {
           setReposicion((reposicionRes.data as FilaReposicion[]) ?? [])
+        }
+        // Lo que falta cobrar, por cliente (control interno)
+        if (!deudasRes.error) {
+          setDeudas((deudasRes.data as FilaDeuda[]) ?? [])
         }
 
         // Facturación de los últimos 6 meses calendario
@@ -258,6 +272,46 @@ export default function Dashboard() {
           tint="violet"
         />
       </div>
+
+      {deudas.length > 0 && (
+        <Card
+          className="mt-6"
+          title={
+            <span className="flex items-center gap-2 text-red-700">
+              <IconBanknotes className="h-5 w-5" />
+              Por cobrar · {formatARS(deudas.reduce((acc, d) => acc + Number(d.saldo), 0))} ·{' '}
+              {deudas.length} {deudas.length === 1 ? 'cliente' : 'clientes'}
+            </span>
+          }
+          actions={
+            <Link to="/remitos?cobro=por_cobrar" className="text-sm font-medium text-brand-700 hover:text-brand-800">
+              Ver remitos por cobrar →
+            </Link>
+          }
+        >
+          <ul className="divide-y divide-slate-100">
+            {deudas.slice(0, 5).map((d) => (
+              <li
+                key={`${d.cliente_id ?? ''}|${d.cliente_nombre ?? ''}`}
+                className="flex items-center justify-between gap-3 py-2.5"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-slate-800">{d.cliente_nombre || '—'}</p>
+                  <p className="text-xs text-slate-500">
+                    {d.remitos} {Number(d.remitos) === 1 ? 'remito' : 'remitos'} · el más viejo {haceDias(d.desde)}
+                  </p>
+                </div>
+                <span className="shrink-0 text-sm font-semibold text-slate-900">{formatARS(Number(d.saldo))}</span>
+              </li>
+            ))}
+          </ul>
+          {deudas.length > 5 && (
+            <p className="pt-3 text-center text-xs text-slate-500">
+              y {deudas.length - 5} cliente{deudas.length - 5 === 1 ? '' : 's'} más
+            </p>
+          )}
+        </Card>
+      )}
 
       {reposicion.length > 0 && (
         <Card

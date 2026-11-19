@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { filtroTexto } from '../lib/consultas'
-import { formatARS, formatFecha } from '../lib/format'
+import { formatARS, formatFecha, formatFechaHora, haceDias } from '../lib/format'
 import {
   Badge,
   Button,
@@ -14,9 +14,11 @@ import {
   Modal,
   PageHeader,
   Pagination,
+  Segmented,
 } from '../components/ui'
 import {
   IconBan,
+  IconBanknotes,
   IconDocumentList,
   IconDownload,
   IconEye,
@@ -26,15 +28,39 @@ import {
   IconTrash,
 } from '../components/icons'
 import { useToast } from '../components/Toast'
+import RegistrarPagoModal from '../components/RegistrarPagoModal'
 import { exportarCSV, fechaParaArchivo } from '../lib/csv'
-import type { Remito, RemitoItem } from '../types'
+import type { ImputacionConPago, RemitoConCobro, RemitoItem } from '../types'
 
 const POR_PAGINA = 25
+
+type FiltroCobro = 'todos' | 'por_cobrar' | 'cobrados'
+
+const ETIQUETA_COBRO = {
+  pendiente: 'Por cobrar',
+  parcial: 'Parcial',
+  cobrado: 'Cobrado',
+  anulado: '—',
+} as const
+
+/** Situación de cobro de un remito en la lista (control interno). */
+function CobroBadge({ r }: { r: RemitoConCobro }) {
+  if (r.estado_cobro === 'anulado') return <span className="text-slate-400">—</span>
+  if (r.estado_cobro === 'cobrado') return <Badge color="green">Cobrado</Badge>
+  return (
+    <div className="leading-tight">
+      <Badge color={r.estado_cobro === 'parcial' ? 'amber' : 'red'}>{ETIQUETA_COBRO[r.estado_cobro]}</Badge>
+      <p className="mt-0.5 text-xs text-slate-500">
+        {r.estado_cobro === 'parcial' ? `falta ${formatARS(r.saldo)}` : haceDias(r.fecha)}
+      </p>
+    </div>
+  )
+}
 
 export default function Remitos() {
   const { toast } = useToast()
   const navigate = useNavigate()
-  const [remitos, setRemitos] = useState<Remito[] | null>(null)
+  const [remitos, setRemitos] = useState<RemitoConCobro[] | null>(null)
   const [total, setTotal] = useState(0)
   const [pagina, setPagina] = useState(1)
 
@@ -42,40 +68,72 @@ export default function Remitos() {
   const [busqueda, setBusqueda] = useState('')
   const [desde, setDesde] = useState('')
   const [hasta, setHasta] = useState('')
+  // El filtro de cobro vive en la URL (?cobro=por_cobrar) para que el Panel
+  // pueda abrir directamente la lista de lo que falta cobrar
+  const [searchParams, setSearchParams] = useSearchParams()
+  const parametroCobro = searchParams.get('cobro')
+  const filtroCobro: FiltroCobro =
+    parametroCobro === 'por_cobrar' || parametroCobro === 'cobrados' ? parametroCobro : 'todos'
+  function setFiltroCobro(valor: FiltroCobro) {
+    setSearchParams(
+      (prev) => {
+        const nuevos = new URLSearchParams(prev)
+        if (valor === 'todos') nuevos.delete('cobro')
+        else nuevos.set('cobro', valor)
+        return nuevos
+      },
+      { replace: true }
+    )
+  }
 
-  const [detalle, setDetalle] = useState<Remito | null>(null)
+  // Remitos marcados para cobrar juntos (se mantienen al cambiar de página)
+  const [seleccion, setSeleccion] = useState<Map<number, RemitoConCobro>>(new Map())
+  const [aCobrar, setACobrar] = useState<RemitoConCobro[] | null>(null)
+
+  const [detalle, setDetalle] = useState<RemitoConCobro | null>(null)
   const [itemsDetalle, setItemsDetalle] = useState<RemitoItem[] | null>(null)
-  const [aEliminar, setAEliminar] = useState<Remito | null>(null)
+  const [pagosDetalle, setPagosDetalle] = useState<ImputacionConPago[] | null>(null)
+  const [aAnularPago, setAAnularPago] = useState<ImputacionConPago | null>(null)
+  const [motivoAnulacion, setMotivoAnulacion] = useState('')
+  const [anulandoPago, setAnulandoPago] = useState(false)
+  const [aEliminar, setAEliminar] = useState<RemitoConCobro | null>(null)
   const [eliminando, setEliminando] = useState(false)
-  const [aAnular, setAAnular] = useState<Remito | null>(null)
+  const [aAnular, setAAnular] = useState<RemitoConCobro | null>(null)
   const [anulando, setAnulando] = useState(false)
-  const [aRestaurar, setARestaurar] = useState<Remito | null>(null)
+  const [aRestaurar, setARestaurar] = useState<RemitoConCobro | null>(null)
   const [restaurando, setRestaurando] = useState(false)
   const [descargando, setDescargando] = useState<number | null>(null)
   const [exportando, setExportando] = useState(false)
 
-  const hayFiltros = Boolean(busqueda.trim() || desde || hasta)
+  const hayFiltros = Boolean(busqueda.trim() || desde || hasta || filtroCobro !== 'todos')
 
   // Al cambiar un filtro se vuelve a la primera página
   useEffect(() => {
     setPagina(1)
-  }, [busqueda, desde, hasta])
+  }, [busqueda, desde, hasta, filtroCobro])
 
   // Carga paginada desde el servidor (con un pequeño debounce para tipear)
   useEffect(() => {
     const timer = setTimeout(cargar, busqueda ? 300 : 0)
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pagina, busqueda, desde, hasta])
+  }, [pagina, busqueda, desde, hasta, filtroCobro])
 
-  async function cargar() {
-    const from = (pagina - 1) * POR_PAGINA
-    let query = supabase.from('remitos').select('*', { count: 'exact' })
-
+  /** Aplica los filtros de la pantalla a una consulta de remitos_con_cobro. */
+  function filtrar(query: any) {
     const q = filtroTexto(busqueda)
     if (q) query = query.or(`numero.ilike.%${q}%,cliente_nombre.ilike.%${q}%`)
     if (desde) query = query.gte('fecha', desde)
     if (hasta) query = query.lte('fecha', hasta)
+    if (filtroCobro === 'por_cobrar') query = query.in('estado_cobro', ['pendiente', 'parcial'])
+    if (filtroCobro === 'cobrados') query = query.eq('estado_cobro', 'cobrado')
+    return query
+  }
+
+  async function cargar() {
+    const from = (pagina - 1) * POR_PAGINA
+    // La vista trae cada remito con lo cobrado y el saldo (los remitos no se tocan)
+    const query = filtrar(supabase.from('remitos_con_cobro').select('*', { count: 'exact' }))
 
     const { data, count, error } = await query
       .order('fecha', { ascending: false })
@@ -88,8 +146,46 @@ export default function Remitos() {
       setTotal(0)
       return
     }
-    setRemitos((data as Remito[]) ?? [])
+    setRemitos((data as RemitoConCobro[]) ?? [])
     setTotal(count ?? 0)
+  }
+
+  function alternarSeleccion(r: RemitoConCobro) {
+    setSeleccion((prev) => {
+      const nueva = new Map(prev)
+      if (nueva.has(r.id)) nueva.delete(r.id)
+      else nueva.set(r.id, r)
+      return nueva
+    })
+  }
+
+  const cobrablesPagina = (remitos ?? []).filter((r) => r.saldo > 0)
+  const paginaSeleccionada =
+    cobrablesPagina.length > 0 && cobrablesPagina.every((r) => seleccion.has(r.id))
+
+  function alternarPagina() {
+    setSeleccion((prev) => {
+      const nueva = new Map(prev)
+      for (const r of cobrablesPagina) {
+        if (paginaSeleccionada) nueva.delete(r.id)
+        else nueva.set(r.id, r)
+      }
+      return nueva
+    })
+  }
+
+  const saldoSeleccion = Array.from(seleccion.values()).reduce((acc, r) => acc + r.saldo, 0)
+
+  /** Después de registrar o anular un pago: refresca la lista y el detalle abierto. */
+  async function trasCambioDeCobro() {
+    setACobrar(null)
+    setSeleccion(new Map())
+    cargar()
+    if (detalle) {
+      const { data } = await supabase.from('remitos_con_cobro').select('*').eq('id', detalle.id).single()
+      if (data) setDetalle(data as RemitoConCobro)
+      cargarPagos(detalle.id)
+    }
   }
 
   const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA))
@@ -99,24 +195,20 @@ export default function Remitos() {
     setExportando(true)
     try {
       const LOTE = 1000
-      const filas: Remito[] = []
+      const filas: RemitoConCobro[] = []
       for (let desde_i = 0; ; desde_i += LOTE) {
-        let query = supabase.from('remitos').select('*')
-        const q = filtroTexto(busqueda)
-        if (q) query = query.or(`numero.ilike.%${q}%,cliente_nombre.ilike.%${q}%`)
-        if (desde) query = query.gte('fecha', desde)
-        if (hasta) query = query.lte('fecha', hasta)
+        const query = filtrar(supabase.from('remitos_con_cobro').select('*'))
         const { data, error } = await query
           .order('fecha', { ascending: false })
           .order('id', { ascending: false })
           .range(desde_i, desde_i + LOTE - 1)
         if (error) throw error
-        filas.push(...((data as Remito[]) ?? []))
+        filas.push(...((data as RemitoConCobro[]) ?? []))
         if (!data || data.length < LOTE) break
       }
       exportarCSV(
         `remitos_${fechaParaArchivo()}`,
-        ['Número', 'Fecha', 'Cliente', 'CUIT', 'Domicilio', 'Cond. IVA', 'Cond. venta', 'Total', 'Estado'],
+        ['Número', 'Fecha', 'Cliente', 'CUIT', 'Domicilio', 'Cond. IVA', 'Cond. venta', 'Total', 'Estado', 'Cobro', 'Cobrado', 'Saldo'],
         filas.map((r) => [
           r.numero,
           r.fecha,
@@ -127,6 +219,9 @@ export default function Remitos() {
           r.condicion_venta,
           r.total,
           r.estado ?? 'Completado',
+          ETIQUETA_COBRO[r.estado_cobro],
+          r.cobrado,
+          r.saldo,
         ])
       )
       toast('success', `Se exportaron ${filas.length} remitos a CSV.`)
@@ -137,9 +232,38 @@ export default function Remitos() {
     }
   }
 
-  async function abrirDetalle(remito: Remito) {
+  async function cargarPagos(remitoId: number) {
+    const { data, error } = await supabase
+      .from('pago_imputaciones')
+      .select('id, importe, remito_numero, pagos(id, fecha, importe, medio, referencia, nota, anulado, motivo_anulacion, fecha_anulacion)')
+      .eq('remito_id', remitoId)
+      .order('id')
+    setPagosDetalle(error ? [] : ((data as unknown as ImputacionConPago[]) ?? []))
+  }
+
+  async function anularPago() {
+    if (!aAnularPago || !motivoAnulacion.trim()) return
+    setAnulandoPago(true)
+    const { error } = await supabase.rpc('anular_pago', {
+      p_pago_id: aAnularPago.pagos.id,
+      p_motivo: motivoAnulacion.trim(),
+    })
+    setAnulandoPago(false)
+    if (error) {
+      toast('error', `No se pudo anular el pago: ${error.message}`)
+      return
+    }
+    toast('success', `Pago de ${formatARS(aAnularPago.pagos.importe)} anulado.`)
+    setAAnularPago(null)
+    setMotivoAnulacion('')
+    trasCambioDeCobro()
+  }
+
+  async function abrirDetalle(remito: RemitoConCobro) {
     setDetalle(remito)
     setItemsDetalle(null)
+    setPagosDetalle(null)
+    cargarPagos(remito.id)
     const { data, error } = await supabase
       .from('remito_items')
       .select('*')
@@ -153,7 +277,7 @@ export default function Remitos() {
     setItemsDetalle((data as RemitoItem[]) ?? [])
   }
 
-  async function descargarPDF(remito: Remito) {
+  async function descargarPDF(remito: RemitoConCobro) {
     setDescargando(remito.id)
     try {
       const { data, error } = await supabase
@@ -267,7 +391,7 @@ export default function Remitos() {
               onChange={(e) => setBusqueda(e.target.value)}
             />
           </div>
-          <div className="flex items-end gap-2">
+          <div className="flex flex-wrap items-end gap-2">
             <Input
               label="Desde"
               id="desde"
@@ -294,6 +418,7 @@ export default function Remitos() {
                   setBusqueda('')
                   setDesde('')
                   setHasta('')
+                  setFiltroCobro('todos')
                 }}
               >
                 Limpiar
@@ -313,6 +438,37 @@ export default function Remitos() {
           </div>
         </div>
 
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <Segmented<FiltroCobro>
+            size="sm"
+            value={filtroCobro}
+            onChange={setFiltroCobro}
+            options={[
+              { value: 'todos', label: 'Todos' },
+              { value: 'por_cobrar', label: <span className="whitespace-nowrap">Por cobrar</span> },
+              { value: 'cobrados', label: 'Cobrados' },
+            ]}
+          />
+          <p className="text-xs text-slate-400">El cobro es un control interno: no sale en el remito.</p>
+        </div>
+
+        {seleccion.size > 0 && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-brand-50 px-4 py-3">
+            <p className="text-sm text-slate-700">
+              <strong>{seleccion.size}</strong> {seleccion.size === 1 ? 'remito marcado' : 'remitos marcados'} · saldo{' '}
+              <strong>{formatARS(saldoSeleccion)}</strong>
+            </p>
+            <div className="flex gap-2">
+              <Button variant="ghost" className="!py-1.5" onClick={() => setSeleccion(new Map())}>
+                Quitar marcas
+              </Button>
+              <Button className="!py-1.5" onClick={() => setACobrar(Array.from(seleccion.values()))}>
+                <IconBanknotes className="h-4 w-4" /> Registrar pago
+              </Button>
+            </div>
+          </div>
+        )}
+
         {remitos === null ? (
           <LoadingState />
         ) : remitos.length === 0 ? (
@@ -321,7 +477,7 @@ export default function Remitos() {
             title={hayFiltros ? 'Sin resultados' : 'Todavía no hay remitos'}
             description={
               hayFiltros
-                ? 'Probá con otro número, cliente o rango de fechas.'
+                ? 'Probá con otro número, cliente, rango de fechas o filtro de cobro.'
                 : 'Cuando generes el primer remito va a aparecer acá.'
             }
           />
@@ -332,17 +488,40 @@ export default function Remitos() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+                    <th className="w-8 pb-3 pr-2">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 accent-brand-700"
+                        aria-label="Marcar todos los remitos por cobrar de esta página"
+                        title="Marcar todos los remitos por cobrar de esta página"
+                        checked={paginaSeleccionada}
+                        disabled={cobrablesPagina.length === 0}
+                        onChange={alternarPagina}
+                      />
+                    </th>
                     <th className="pb-3 pr-4 font-medium">Número</th>
                     <th className="pb-3 pr-4 font-medium">Fecha</th>
                     <th className="pb-3 pr-4 font-medium">Cliente</th>
                     <th className="pb-3 pr-4 text-right font-medium">Total</th>
                     <th className="pb-3 pr-4 font-medium">Estado</th>
+                    <th className="pb-3 pr-4 font-medium">Cobro</th>
                     <th className="pb-3 text-right font-medium">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {remitos.map((r) => (
                     <tr key={r.id} className="transition hover:bg-slate-50">
+                      <td className="py-3 pr-2">
+                        {r.saldo > 0 && (
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 accent-brand-700"
+                            aria-label={`Marcar el remito ${r.numero} para cobrar`}
+                            checked={seleccion.has(r.id)}
+                            onChange={() => alternarSeleccion(r)}
+                          />
+                        )}
+                      </td>
                       <td className="py-3 pr-4 font-mono font-semibold text-slate-800">{r.numero}</td>
                       <td className="py-3 pr-4 text-slate-600">{formatFecha(r.fecha)}</td>
                       <td className="max-w-[220px] truncate py-3 pr-4 font-medium text-slate-800">
@@ -356,8 +535,20 @@ export default function Remitos() {
                           {r.estado ?? 'Completado'}
                         </Badge>
                       </td>
+                      <td className="py-3 pr-4">
+                        <CobroBadge r={r} />
+                      </td>
                       <td className="py-3">
                         <div className="flex justify-end gap-1">
+                          {r.saldo > 0 && (
+                            <button
+                              onClick={() => setACobrar([r])}
+                              className="rounded-lg p-2 text-brand-700 transition hover:bg-brand-50"
+                              title="Registrar pago"
+                            >
+                              <IconBanknotes className="h-5 w-5" />
+                            </button>
+                          )}
                           <button
                             onClick={() => abrirDetalle(r)}
                             className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
@@ -419,7 +610,16 @@ export default function Remitos() {
               {remitos.map((r) => (
                 <li key={r.id} className="rounded-xl border border-slate-200 p-4">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
+                    {r.saldo > 0 && (
+                      <input
+                        type="checkbox"
+                        className="mt-1 h-4 w-4 shrink-0 accent-brand-700"
+                        aria-label={`Marcar el remito ${r.numero} para cobrar`}
+                        checked={seleccion.has(r.id)}
+                        onChange={() => alternarSeleccion(r)}
+                      />
+                    )}
+                    <div className="min-w-0 flex-1">
                       <p className="truncate font-medium text-slate-800">{r.cliente_nombre || '—'}</p>
                       <p className="mt-0.5 text-xs text-slate-500">
                         <span className="font-mono">{r.numero}</span> · {formatFecha(r.fecha)}
@@ -430,16 +630,26 @@ export default function Remitos() {
                         )}
                       </p>
                     </div>
-                    <p className="shrink-0 font-semibold text-slate-900">{formatARS(r.total)}</p>
+                    <div className="shrink-0 text-right">
+                      <p className="font-semibold text-slate-900">{formatARS(r.total)}</p>
+                      <div className="mt-1">
+                        <CobroBadge r={r} />
+                      </div>
+                    </div>
                   </div>
-                  <div className="mt-3 flex gap-2">
-                    <Button variant="secondary" className="flex-1 !py-1.5" onClick={() => abrirDetalle(r)}>
+                  {r.saldo > 0 && (
+                    <Button variant="secondary" className="mt-3 w-full !py-1.5" onClick={() => setACobrar([r])}>
+                      <IconBanknotes className="h-4 w-4 text-brand-700" /> Registrar pago
+                    </Button>
+                  )}
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    <Button variant="secondary" className="flex-1 !px-2 !py-1.5" onClick={() => abrirDetalle(r)}>
                       <IconEye className="h-4 w-4" /> Ver
                     </Button>
                     {r.estado !== 'Anulado' && (
                       <Button
                         variant="secondary"
-                        className="flex-1 !py-1.5"
+                        className="flex-1 !px-2 !py-1.5"
                         onClick={() => navigate(`/remitos/${r.id}/editar`)}
                       >
                         <IconPencil className="h-4 w-4" /> Editar
@@ -447,7 +657,7 @@ export default function Remitos() {
                     )}
                     <Button
                       variant="secondary"
-                      className="flex-1 !py-1.5"
+                      className="flex-1 !px-2 !py-1.5"
                       onClick={() => descargarPDF(r)}
                       loading={descargando === r.id}
                     >
@@ -579,6 +789,143 @@ export default function Remitos() {
                 </table>
               </div>
             )}
+
+            {detalle.estado_cobro !== 'anulado' && (
+              <div className="rounded-lg border border-slate-200">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-slate-50 px-3 py-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Cobro · control interno
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <CobroBadge r={detalle} />
+                    {detalle.saldo > 0 && (
+                      <Button className="!px-3 !py-1.5" onClick={() => setACobrar([detalle])}>
+                        <IconBanknotes className="h-4 w-4" /> Registrar pago
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3 px-3 py-3 text-sm">
+                  <div>
+                    <p className="text-xs text-slate-400">Total</p>
+                    <p className="font-medium text-slate-800">{formatARS(detalle.total)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400">Cobrado</p>
+                    <p className="font-medium text-emerald-700">{formatARS(detalle.cobrado)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400">Saldo</p>
+                    <p className={`font-semibold ${detalle.saldo > 0 ? 'text-red-700' : 'text-slate-800'}`}>
+                      {formatARS(detalle.saldo)}
+                    </p>
+                  </div>
+                </div>
+                {pagosDetalle === null ? (
+                  <p className="px-3 pb-3 text-xs text-slate-400">Cargando pagos…</p>
+                ) : pagosDetalle.length === 0 ? (
+                  <p className="px-3 pb-3 text-xs text-slate-400">Todavía no se registraron pagos.</p>
+                ) : (
+                  <ul className="divide-y divide-slate-100 border-t border-slate-100">
+                    {pagosDetalle.map((imp) => (
+                      <li key={imp.id} className="flex items-start justify-between gap-3 px-3 py-2.5 text-sm">
+                        <div className={`min-w-0 ${imp.pagos.anulado ? 'opacity-60' : ''}`}>
+                          <p className="font-medium text-slate-800">
+                            {formatFecha(imp.pagos.fecha)} · {imp.pagos.medio}
+                            {imp.pagos.referencia && (
+                              <span className="font-normal text-slate-500"> · {imp.pagos.referencia}</span>
+                            )}
+                          </p>
+                          {imp.pagos.importe !== imp.importe && (
+                            <p className="text-xs text-slate-500">
+                              Parte de un pago de {formatARS(imp.pagos.importe)} que cubre otros remitos
+                            </p>
+                          )}
+                          {imp.pagos.nota && <p className="text-xs text-slate-500">{imp.pagos.nota}</p>}
+                          {imp.pagos.anulado && (
+                            <p className="text-xs text-red-700">
+                              Anulado el {formatFechaHora(imp.pagos.fecha_anulacion)}: {imp.pagos.motivo_anulacion}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <span
+                            className={`font-semibold ${imp.pagos.anulado ? 'text-slate-400 line-through' : 'text-slate-900'}`}
+                          >
+                            {formatARS(imp.importe)}
+                          </span>
+                          {!imp.pagos.anulado && (
+                            <button
+                              onClick={() => {
+                                setMotivoAnulacion('')
+                                setAAnularPago(imp)
+                              }}
+                              className="rounded-lg p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                              title="Anular este pago"
+                            >
+                              <IconBan className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      {aCobrar && (
+        <RegistrarPagoModal
+          remitos={aCobrar}
+          onClose={() => setACobrar(null)}
+          onRegistrado={trasCambioDeCobro}
+        />
+      )}
+
+      <Modal
+        open={aAnularPago !== null}
+        onClose={() => setAAnularPago(null)}
+        title="Anular pago"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setAAnularPago(null)} disabled={anulandoPago}>
+              Cancelar
+            </Button>
+            <Button
+              variant="danger"
+              onClick={anularPago}
+              loading={anulandoPago}
+              disabled={!motivoAnulacion.trim()}
+            >
+              Anular pago
+            </Button>
+          </>
+        }
+      >
+        {aAnularPago && (
+          <div className="space-y-3 text-sm text-slate-600">
+            <p>
+              Pago del <strong>{formatFecha(aAnularPago.pagos.fecha)}</strong> por{' '}
+              <strong>{formatARS(aAnularPago.pagos.importe)}</strong> ({aAnularPago.pagos.medio}). El pago no se
+              borra: queda en la historia como anulado y el remito vuelve a tener saldo.
+            </p>
+            {aAnularPago.pagos.importe !== aAnularPago.importe && (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
+                Este pago también cubre otros remitos: se anula completo y esos remitos también vuelven a
+                quedar con saldo.
+              </p>
+            )}
+            <Input
+              label="Motivo (obligatorio)"
+              id="motivo-anulacion"
+              placeholder="Ej.: transferencia rechazada, cargado por error…"
+              maxLength={500}
+              value={motivoAnulacion}
+              onChange={(e) => setMotivoAnulacion(e.target.value)}
+            />
           </div>
         )}
       </Modal>

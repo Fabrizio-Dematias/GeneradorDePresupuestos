@@ -100,6 +100,7 @@ npx vite preview --outDir dist-mock
 | **Panel** | Estadísticas generales, gráfico de facturación y últimos remitos |
 | **Nuevo remito** | Buscador de productos con autocompletado (por código o descripción), bonificaciones, numeración automática `0001-XXX` y descarga del PDF |
 | **Remitos** | Lista con búsqueda, detalle completo, **re-descarga del PDF** de cualquier remito y eliminación |
+| **Cobros** | Control interno de qué remitos están cobrados, cobrados en parte o por cobrar; pagos de varios remitos juntos y lo que debe cada cliente en el Panel |
 | **Productos** | Alta/edición/baja, filtro por categoría, búsqueda, **stock**, **importación de listas desde Excel/CSV** y **actualización masiva de precios** con vista previa |
 | **Stock / Inventario** | Control de stock con semáforo (verde/ámbar/rojo), valor del inventario, alerta de reposición, ingresos/egresos/ajustes y registro de **todos los movimientos**. El stock se descuenta solo al generar un remito |
 | **Historial de precios** | Auditoría de todos los cambios (masivos e individuales), con filtros — *en la app de escritorio este módulo no funcionaba* |
@@ -118,6 +119,26 @@ Mejoras respecto a la app de escritorio:
 - **Importar listas**: se carga el mismo Excel que se usa para mandar la lista de
   precios y el sistema da de alta los productos nuevos y actualiza los que ya están.
 - Los datos están en la nube con backup automático de Supabase.
+
+### Cobros (control interno)
+
+Sirve para que no quede ningún remito sin cobrar. **Es interno: no aparece en el
+remito ni en el PDF** que se lleva el cliente, y no cambia los importes de los
+remitos ni la facturación (los pagos se guardan aparte, en `pagos`).
+
+- **Remitos** tiene la columna **Cobro** (Por cobrar · Parcial · Cobrado) y el filtro
+  *Por cobrar / Cobrados*.
+- **Registrar pago**: desde cada remito, o marcando varios y usando la barra que
+  aparece arriba. Se puede pagar una parte; con varios remitos del mismo cliente se
+  carga el **monto recibido** y se reparte saldando primero los más viejos (cada uno
+  se puede ajustar). Si se marcan remitos de clientes distintos, se registra un pago
+  por cliente.
+- **Nuevo remito** tiene la opción *Cobrado en el momento*. Arranca siempre en
+  *Queda por cobrar*: marcarlo cobrado tiene que ser una decisión.
+- El **Panel** muestra cuánto falta cobrar y a quién, empezando por los que más deben.
+- Un pago **no se borra**: se anula con motivo (queda en el detalle del remito, tachado).
+  Un remito con pagos no se puede eliminar ni anular, y al editarlo el total no puede
+  quedar por debajo de lo cobrado: primero hay que anular el pago.
 
 ### Importar una lista de precios
 
@@ -230,6 +251,10 @@ Para saltear el aumento en un commit puntual: `SIN_VERSION=1 git commit -m "..."
   solo se mueve por la diferencia de lo que se agregó o quitó: editar un remito
   viejo (calculado con otro redondeo) no cambia sus importes ni la facturación.
   Eliminar un remito pasa siempre por `eliminar_remito`, que repone el stock.
+- **Cobros**: los pagos solo se registran con `registrar_pagos` y se anulan con
+  `anular_pago` (nunca se borran ni se modifican por la API). Un trigger protege los
+  remitos con pagos vigentes por cualquier camino: no se pueden eliminar ni anular, y
+  su total no puede bajar de lo cobrado.
 - **Importación**: el lector de Excel corta la lectura si el archivo descomprime a
   un tamaño desmedido, para que un archivo armado con mala intención no cuelgue la
   pestaña.

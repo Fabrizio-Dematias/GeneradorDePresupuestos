@@ -55,6 +55,22 @@ export function hoyISO(): string {
   return `${y}-${m}-${d}`
 }
 
+/** Días corridos desde una fecha 'YYYY-MM-DD' hasta hoy (0 si es hoy o futura). */
+export function diasDesde(fecha: string): number {
+  const [y, m, d] = fecha.slice(0, 10).split('-').map(Number)
+  const inicio = new Date(y, m - 1, d)
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+  return Math.max(0, Math.round((hoy.getTime() - inicio.getTime()) / 86_400_000))
+}
+
+/** "hoy" / "hace 1 día" / "hace 12 días" */
+export function haceDias(fecha: string): string {
+  const dias = diasDesde(fecha)
+  if (dias === 0) return 'hoy'
+  return `hace ${dias} ${dias === 1 ? 'día' : 'días'}`
+}
+
 /** Misma lógica que la app de escritorio: 11 dígitos → XX-XXXXXXXX-X */
 export function formatearCUIT(cuit: string): string {
   if (!cuit) return ''

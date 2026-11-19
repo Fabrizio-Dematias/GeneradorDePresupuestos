@@ -60,6 +60,47 @@ export interface Remito {
   fecha_creacion: string | null
 }
 
+/** Situación de cobro de un remito (control interno, no sale en el PDF). */
+export type EstadoCobro = 'pendiente' | 'parcial' | 'cobrado' | 'anulado'
+
+/** Fila de la vista remitos_con_cobro: el remito más lo cobrado y el saldo. */
+export interface RemitoConCobro extends Remito {
+  cliente_id: number | null
+  cobrado: number
+  saldo: number
+  estado_cobro: EstadoCobro
+  ultimo_pago: string | null
+}
+
+export const MEDIOS_PAGO = [
+  'Efectivo',
+  'Transferencia',
+  'Cheque',
+  'Mercado Pago',
+  'Tarjeta',
+  'Otro',
+] as const
+
+export interface Pago {
+  id: number
+  fecha: string
+  importe: number
+  medio: string
+  referencia: string | null
+  nota: string | null
+  anulado: boolean
+  motivo_anulacion: string | null
+  fecha_anulacion: string | null
+}
+
+/** Parte de un pago que se aplicó a un remito, con el pago completo embebido. */
+export interface ImputacionConPago {
+  id: number
+  importe: number
+  remito_numero: string
+  pagos: Pago
+}
+
 export interface RemitoItem {
   id: number
   remito_id: number
