@@ -12,6 +12,7 @@ import Remitos from './pages/Remitos'
 import Clientes from './pages/Clientes'
 import Productos from './pages/Productos'
 import Stock from './pages/Stock'
+import Proveedores from './pages/Proveedores'
 import HistorialPrecios from './pages/HistorialPrecios'
 import Reportes from './pages/Reportes'
 import Facturacion from './pages/Facturacion'
@@ -58,6 +59,7 @@ export default function App() {
               <Route path="/clientes" element={<Clientes />} />
               <Route path="/productos" element={<Productos />} />
               <Route path="/stock" element={<Stock />} />
+              <Route path="/proveedores" element={<Proveedores />} />
               <Route path="/historial" element={<HistorialPrecios />} />
               <Route path="/reportes" element={<Reportes />} />
               <Route path="/facturacion" element={<Facturacion />} />

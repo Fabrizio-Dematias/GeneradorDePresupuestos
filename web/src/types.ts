@@ -60,6 +60,31 @@ export interface Remito {
   fecha_creacion: string | null
 }
 
+export interface Proveedor {
+  id: number
+  nombre: string
+  contacto: string | null
+  telefono: string | null
+  email: string | null
+  /** Descuento único sobre el precio de lista del proveedor, en %. */
+  descuento: number
+  /** Cargo fijo por unidad que se suma después del descuento (ej. emblistado). */
+  cargo_nombre: string
+  cargo_unitario: number
+  notas: string | null
+  fecha_creacion: string | null
+}
+
+/** Código y precio de lista de un producto propio en un proveedor. */
+export interface ProductoProveedor {
+  id: number
+  producto_id: number
+  proveedor_id: number
+  codigo_proveedor: string
+  precio_lista: number | null
+  fecha_actualizacion: string | null
+}
+
 /** Situación de cobro de un remito (control interno, no sale en el PDF). */
 export type EstadoCobro = 'pendiente' | 'parcial' | 'cobrado' | 'anulado'
 

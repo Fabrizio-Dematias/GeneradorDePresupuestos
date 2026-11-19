@@ -36,7 +36,9 @@ export function filtroTexto(texto: string): string {
 export async function traerTodas<T>(
   tabla: string,
   columnas = '*',
-  orden?: string
+  orden?: string,
+  /** Filtros extra para la consulta, por ejemplo (q) => q.eq('proveedor_id', 3) */
+  filtrar?: (consulta: any) => any
 ): Promise<T[]> {
   const LOTE = 1000
   const filas: T[] = []
@@ -45,6 +47,7 @@ export async function traerTodas<T>(
   for (;;) {
     let consulta = supabase.from(tabla).select(columnas).range(desde, desde + LOTE - 1)
     if (orden) consulta = consulta.order(orden)
+    if (filtrar) consulta = filtrar(consulta)
 
     const { data, error } = await consulta
     if (error) throw error

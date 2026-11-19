@@ -100,6 +100,20 @@ const pago_imputaciones: any[] = [
 
 const redondear = (n: number) => Math.round(n * 100) / 100
 
+// Proveedores de ejemplo (mismo esquema que la factura de Tosqui: descuento + emblistado)
+const proveedores: any[] = [
+  { id: 1, nombre: 'TOSQUI', contacto: 'Mario', telefono: '351 555-0101', email: null, descuento: 25, cargo_nombre: 'Emblistado', cargo_unitario: 60.6, notas: null, fecha_creacion: '2026-01-10T10:00:00' },
+  { id: 2, nombre: 'VANESA', contacto: null, telefono: null, email: null, descuento: 10, cargo_nombre: 'Emblistado', cargo_unitario: 0, notas: 'Capacitores e interruptores', fecha_creacion: '2026-01-10T10:00:00' },
+]
+const producto_proveedor: any[] = [
+  { id: 1, producto_id: 541, proveedor_id: 1, codigo_proveedor: '74', precio_lista: 871.3, fecha_actualizacion: '2026-09-11T10:00:00' },
+  { id: 2, producto_id: 700, proveedor_id: 1, codigo_proveedor: '74', precio_lista: 871.3, fecha_actualizacion: '2026-09-11T10:00:00' },
+  { id: 3, producto_id: 542, proveedor_id: 1, codigo_proveedor: '1210A', precio_lista: 954.3, fecha_actualizacion: '2026-09-11T10:00:00' },
+  { id: 4, producto_id: 538, proveedor_id: 1, codigo_proveedor: '1532', precio_lista: 2719.5, fecha_actualizacion: '2026-09-11T10:00:00' },
+  { id: 5, producto_id: 539, proveedor_id: 1, codigo_proveedor: '987', precio_lista: null, fecha_actualizacion: '2026-09-11T10:00:00' },
+  { id: 6, producto_id: 803, proveedor_id: 2, codigo_proveedor: 'C-25', precio_lista: 3100, fecha_actualizacion: '2026-09-11T10:00:00' },
+]
+
 /** Réplica de la vista remitos_con_cobro. */
 function remitosConCobro() {
   return remitos.map((r) => {
@@ -119,7 +133,10 @@ function remitosConCobro() {
   })
 }
 
-const DB: Record<string, any[]> = { productos, marcas, remitos, remito_items, historial_precios, movimientos_stock, clientes, user_profiles, pagos }
+const DB: Record<string, any[]> = { productos, marcas, remitos, remito_items, historial_precios, movimientos_stock, clientes, user_profiles, pagos, proveedores, producto_proveedor }
+
+// Tablas cuyas altas, cambios y bajas sí se guardan en memoria (para probar la pantalla)
+const PERSISTENTES = new Set(['proveedores', 'producto_proveedor'])
 
 /** Filas de una tabla; las vistas y los embebidos se calculan al momento. */
 function filasDe(table: string): any[] {
@@ -142,8 +159,40 @@ function crearBuilder(table: string) {
     orders: [] as [string, boolean][],
     limit: undefined as number | undefined,
     range: undefined as [number, number] | undefined,
+    mutacion: null as null | { tipo: 'insert' | 'upsert' | 'update' | 'delete'; datos?: any; conflicto?: string[] },
+  }
+  const cumple = (r: any) =>
+    state.eqs.every(([c, v]) => r[c] === v) && state.ins.every(([c, vs]) => vs.includes(r[c]))
+  /** Aplica la mutación pendiente y devuelve las filas afectadas. */
+  function mutar(): any[] {
+    const m = state.mutacion!
+    const tabla = DB[table]
+    if (m.tipo === 'delete') {
+      const borradas = tabla.filter(cumple)
+      DB[table].splice(0, tabla.length, ...tabla.filter((r) => !cumple(r)))
+      return borradas
+    }
+    if (m.tipo === 'update') {
+      const afectadas = tabla.filter(cumple)
+      afectadas.forEach((r) => Object.assign(r, m.datos))
+      return afectadas
+    }
+    const filas = Array.isArray(m.datos) ? m.datos : [m.datos]
+    return filas.map((fila: any) => {
+      const existente =
+        m.tipo === 'upsert' && m.conflicto ? tabla.find((r) => m.conflicto!.every((c) => r[c] === fila[c])) : null
+      if (existente) return Object.assign(existente, fila)
+      const nueva = { id: Math.max(0, ...tabla.map((r) => r.id ?? 0)) + 1, ...fila }
+      tabla.push(nueva)
+      return nueva
+    })
   }
   function resolver() {
+    if (state.mutacion && PERSISTENTES.has(table)) {
+      const afectadas = mutar()
+      if (state.single) return { data: afectadas[0] ?? null, error: null, count: afectadas.length }
+      return { data: afectadas, error: null, count: afectadas.length }
+    }
     let rows = [...filasDe(table)]
     for (const [c, v] of state.eqs) rows = rows.filter((r) => r[c] === v)
     for (const [c, vs] of state.ins) rows = rows.filter((r) => vs.includes(r[c]))
@@ -215,16 +264,20 @@ function crearBuilder(table: string) {
       state.single = true
       return api
     },
-    insert() {
+    insert(datos: any) {
+      state.mutacion = { tipo: 'insert', datos }
       return api
     },
-    upsert() {
+    upsert(datos: any, opts?: { onConflict?: string }) {
+      state.mutacion = { tipo: 'upsert', datos, conflicto: opts?.onConflict?.split(',').map((c) => c.trim()) }
       return api
     },
-    update() {
+    update(datos: any) {
+      state.mutacion = { tipo: 'update', datos }
       return api
     },
     delete() {
+      state.mutacion = { tipo: 'delete' }
       return api
     },
     then(resolve: (r: any) => void) {

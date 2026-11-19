@@ -17,6 +17,7 @@ import {
   IconMenu,
   IconMoon,
   IconSun,
+  IconTruck,
   IconUsers,
   IconX,
 } from './icons'
@@ -28,6 +29,7 @@ const navegacion = [
   { to: '/clientes', label: 'Clientes', icon: IconUsers },
   { to: '/productos', label: 'Productos', icon: IconCube },
   { to: '/stock', label: 'Stock', icon: IconArchiveBox },
+  { to: '/proveedores', label: 'Proveedores', icon: IconTruck },
   { to: '/historial', label: 'Historial de precios', icon: IconClock },
   { to: '/reportes', label: 'Más vendidos', icon: IconChartBar },
   { to: '/facturacion', label: 'Facturación mensual', icon: IconBanknotes },

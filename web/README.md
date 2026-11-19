@@ -100,6 +100,7 @@ npx vite preview --outDir dist-mock
 | **Panel** | Estadísticas generales, gráfico de facturación y últimos remitos |
 | **Nuevo remito** | Buscador de productos con autocompletado (por código o descripción), bonificaciones, numeración automática `0001-XXX` y descarga del PDF |
 | **Remitos** | Lista con búsqueda, detalle completo, **re-descarga del PDF** de cualquier remito y eliminación |
+| **Proveedores** | Código de cada producto en cada proveedor, precio de compra con su descuento y cargo por unidad, **margen** y armado del **pedido en Excel** |
 | **Cobros** | Control interno de qué remitos están cobrados, cobrados en parte o por cobrar; pagos de varios remitos juntos y lo que debe cada cliente en el Panel |
 | **Productos** | Alta/edición/baja, filtro por categoría, búsqueda, **stock**, **importación de listas desde Excel/CSV** y **actualización masiva de precios** con vista previa |
 | **Stock / Inventario** | Control de stock con semáforo (verde/ámbar/rojo), valor del inventario, alerta de reposición, ingresos/egresos/ajustes y registro de **todos los movimientos**. El stock se descuenta solo al generar un remito |
@@ -139,6 +140,26 @@ remitos ni la facturación (los pagos se guardan aparte, en `pagos`).
 - Un pago **no se borra**: se anula con motivo (queda en el detalle del remito, tachado).
   Un remito con pagos no se puede eliminar ni anular, y al editarlo el total no puede
   quedar por debajo de lo cobrado: primero hay que anular el pago.
+
+### Proveedores y pedidos
+
+Cada proveedor tiene **un descuento** sobre su precio de lista y, si corresponde, un
+**cargo por unidad** que se suma después del descuento (por ejemplo el emblistado de
+los carbones). El costo de cada unidad se calcula igual que en su factura:
+
+    costo = precio del proveedor × (1 − descuento) + cargo por unidad
+
+- **Códigos y precios**: tu catálogo con el código que usa el proveedor y su precio
+  de lista (Enter pasa al campo siguiente para cargar rápido). Muestra el costo final
+  y el **margen** sobre el costo; con *Margen con bonificación* se ve cuánto queda si
+  al cliente le hacés descuento. El margen solo se ve en esta pantalla.
+- **Pedido**: los productos de ese proveedor con tu código, el suyo y el stock. Se
+  elige cuánto pedir (*Completar hasta el mínimo* lo sugiere) y se descarga un
+  **Excel** `PEDIDO <PROVEEDOR> dd-mm-aaaa.xlsx` con solo **código del proveedor y
+  cantidad** (y la nota, si hay), editable. Si dos productos tuyos comparten el código
+  del proveedor, van sumados en una línea. Muestra el costo estimado armado igual que
+  la factura (lista − descuento + cargo × unidades). El pedido en curso queda guardado
+  en el navegador hasta que se vacía.
 
 ### Importar una lista de precios
 
